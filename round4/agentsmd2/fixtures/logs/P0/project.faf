@@ -1,0 +1,47 @@
+faf_version: "3.0"
+project:
+  name: files-api
+  goal: "File metadata API for the docs site"
+  main_language: JavaScript
+  type: backend  # found: backend framework
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: Express 5
+  api_type: "REST"
+  runtime: Node.js 22
+  database: "Filesystem (file metadata, no database)"
+  connection: "node:fs/promises"
+  hosting: "Docker"
+  build: "None (plain ESM JavaScript)"
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "One Node developer; ops reads the logs in Grafana Loki"
+  what: "An Express 5 JSON API"
+  why: "The docs site needs file listings"
+  where: "Docker; stdout shipped to Loki"
+  when: "Logging before launch"
+  how: "Logging decided: pino with pino-http, JSON to stdout (Loki parses it); no console.log in app code"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - JavaScript
+  - Express
+key_files:
+  - package.json
+commands:
+  test: bun run test
+  start: bun run start

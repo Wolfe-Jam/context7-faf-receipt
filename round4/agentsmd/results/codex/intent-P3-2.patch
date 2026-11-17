@@ -1,0 +1,152 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P3/app/main.py <rig>/agentsmd/codex/intent-P3-2/app/main.py
+--- <rig>/agentsmd/fixtures/intent/P3/app/main.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P3-2/app/main.py	2026-11-17 09:22:29
+@@ -1,11 +1,11 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
++from fastapi import Depends, FastAPI, HTTPException
+ from sqlmodel import Session
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import Item, ItemCreate, ItemRead, Order, OrderCreate, OrderLine, OrderRead
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +25,28 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++@app.post("/orders", response_model=OrderRead)
++def create_order(order: OrderCreate, session: SessionDep) -> Order:
++    items: dict[int, Item] = {}
++    for line in order.lines:
++        item = session.get(Item, line.item_id)
++        if item is None:
++            raise HTTPException(status_code=404, detail=f"Item {line.item_id} not found")
++        items[line.item_id] = item
++
++    db_order = Order(customer_email=order.customer_email, total_cents=0)
++    db_order.lines = [
++        OrderLine(
++            item_id=line.item_id,
++            quantity=line.quantity,
++            unit_price_cents=items[line.item_id].price_cents,
++        )
++        for line in order.lines
++    ]
++    db_order.total_cents = sum(line.quantity * items[line.item_id].price_cents for line in order.lines)
++    session.add(db_order)
++    session.commit()
++    session.refresh(db_order)
++    return db_order
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P3/app/models.py <rig>/agentsmd/codex/intent-P3-2/app/models.py
+--- <rig>/agentsmd/fixtures/intent/P3/app/models.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P3-2/app/models.py	2026-11-17 09:22:20
+@@ -1,4 +1,4 @@
+-from sqlmodel import Field, SQLModel
++from sqlmodel import Field, Relationship, SQLModel
+ 
+ 
+ class ItemBase(SQLModel):
+@@ -16,3 +16,42 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++class OrderLineBase(SQLModel):
++    item_id: int
++    quantity: int = Field(gt=0)
++
++
++class OrderLine(OrderLineBase, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int = Field(foreign_key="order.id")
++    unit_price_cents: int
++    order: "Order" = Relationship(back_populates="lines")
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++    total_cents: int
++    lines: list[OrderLine] = Relationship(back_populates="order")
++
++
++class OrderLineCreate(OrderLineBase):
++    pass
++
++
++class OrderCreate(SQLModel):
++    customer_email: str
++    lines: list[OrderLineCreate] = Field(min_length=1)
++
++
++class OrderLineRead(OrderLineBase):
++    unit_price_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    total_cents: int
++    lines: list[OrderLineRead]
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P3/tests/test_orders.py <rig>/agentsmd/codex/intent-P3-2/tests/test_orders.py
+--- <rig>/agentsmd/fixtures/intent/P3/tests/test_orders.py	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/intent-P3-2/tests/test_orders.py	2026-11-17 09:22:41
+@@ -0,0 +1,50 @@
++from fastapi.testclient import TestClient
++
++from app.main import app
++
++
++def test_create_order_uses_item_prices_for_total():
++    with TestClient(app) as client:
++        pen = client.post("/items", json={"name": "pen", "price_cents": 150}).json()
++        notebook = client.post("/items", json={"name": "notebook", "price_cents": 425}).json()
++
++        response = client.post(
++            "/orders",
++            json={
++                "customer_email": "buyer@example.com",
++                "lines": [
++                    {"item_id": pen["id"], "quantity": 2},
++                    {"item_id": notebook["id"], "quantity": 1},
++                ],
++            },
++        )
++
++        assert response.status_code == 200
++        order = response.json()
++        assert order["customer_email"] == "buyer@example.com"
++        assert order["total_cents"] == 725
++        assert order["lines"] == [
++            {"item_id": pen["id"], "quantity": 2, "unit_price_cents": 150},
++            {"item_id": notebook["id"], "quantity": 1, "unit_price_cents": 425},
++        ]
++
++
++def test_create_order_rejects_unknown_item():
++    with TestClient(app) as client:
++        response = client.post(
++            "/orders",
++            json={"customer_email": "buyer@example.com", "lines": [{"item_id": 999999, "quantity": 1}]},
++        )
++
++        assert response.status_code == 404
++
++
++def test_create_order_requires_positive_quantity():
++    with TestClient(app) as client:
++        item = client.post("/items", json={"name": "pen", "price_cents": 150}).json()
++        response = client.post(
++            "/orders",
++            json={"customer_email": "buyer@example.com", "lines": [{"item_id": item["id"], "quantity": 0}]},
++        )
++
++        assert response.status_code == 422

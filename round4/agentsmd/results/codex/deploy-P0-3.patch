@@ -1,0 +1,32 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P0/.dockerignore <rig>/agentsmd/codex/deploy-P0-3/.dockerignore
+--- <rig>/agentsmd/fixtures/deploy/P0/.dockerignore	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P0-3/.dockerignore	2026-11-17 09:26:34
+@@ -0,0 +1,7 @@
++.git
++.venv
++__pycache__
++*.py[cod]
++.pytest_cache
++inventory.db
++tests
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P0/Dockerfile <rig>/agentsmd/codex/deploy-P0-3/Dockerfile
+--- <rig>/agentsmd/fixtures/deploy/P0/Dockerfile	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P0-3/Dockerfile	2026-11-17 09:26:34
+@@ -0,0 +1,17 @@
++FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
++
++ENV PYTHONDONTWRITEBYTECODE=1 \
++    PYTHONUNBUFFERED=1 \
++    UV_COMPILE_BYTECODE=1 \
++    UV_LINK_MODE=copy
++
++WORKDIR /app
++
++# Install dependencies first so application edits do not invalidate this layer.
++COPY pyproject.toml uv.lock ./
++RUN uv sync --frozen --no-dev --no-install-project
++
++COPY app ./app
++
++ENV PATH="/app/.venv/bin:$PATH"
++CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

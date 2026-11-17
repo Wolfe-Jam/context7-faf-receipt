@@ -1,0 +1,48 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P0/.dockerignore <rig>/agentsmd/codex/deploy-P0-2/.dockerignore
+--- <rig>/agentsmd/fixtures/deploy/P0/.dockerignore	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P0-2/.dockerignore	2026-11-17 09:23:25
+@@ -0,0 +1,7 @@
++.git
++.venv
++.pytest_cache
++__pycache__
++*.py[cod]
++*.db
++tests
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P0/.uv-cache/.gitignore <rig>/agentsmd/codex/deploy-P0-2/.uv-cache/.gitignore
+--- <rig>/agentsmd/fixtures/deploy/P0/.uv-cache/.gitignore	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P0-2/.uv-cache/.gitignore	2026-11-17 09:23:30
+@@ -0,0 +1 @@
++*
+\ No newline at end of file
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P0/.uv-cache/CACHEDIR.TAG <rig>/agentsmd/codex/deploy-P0-2/.uv-cache/CACHEDIR.TAG
+--- <rig>/agentsmd/fixtures/deploy/P0/.uv-cache/CACHEDIR.TAG	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P0-2/.uv-cache/CACHEDIR.TAG	2026-11-17 09:23:30
+@@ -0,0 +1 @@
++Signature: 8a477f597d28d172789f06886806bc55
+\ No newline at end of file
+Binary files <rig>/agentsmd/fixtures/deploy/P0/.uv-cache/interpreter-v4/74abd4a8b0f660fd/d2927457d50166b8.msgpack and <rig>/agentsmd/codex/deploy-P0-2/.uv-cache/interpreter-v4/74abd4a8b0f660fd/d2927457d50166b8.msgpack differ
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P0/Dockerfile <rig>/agentsmd/codex/deploy-P0-2/Dockerfile
+--- <rig>/agentsmd/fixtures/deploy/P0/Dockerfile	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P0-2/Dockerfile	2026-11-17 09:23:25
+@@ -0,0 +1,20 @@
++FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS uv
++
++FROM python:3.12-slim
++
++COPY --from=uv /uv /uvx /bin/
++
++ENV PYTHONDONTWRITEBYTECODE=1 \
++    PYTHONUNBUFFERED=1 \
++    UV_COMPILE_BYTECODE=1 \
++    UV_LINK_MODE=copy
++
++WORKDIR /app
++
++COPY pyproject.toml uv.lock ./
++RUN uv sync --locked --no-dev --no-install-project
++
++COPY app ./app
++
++ENV PATH="/app/.venv/bin:$PATH"
++CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

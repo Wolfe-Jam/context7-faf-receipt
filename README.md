@@ -74,6 +74,33 @@ B asked Context7 for version-specific docs in three cases (Svelte v4, Express v5
 
 Per-run numbers: `results/round*/summary.json`.
 
+### Round 4: what AGENTS.md carries (OpenCode and Codex)
+
+Found while testing OpenCode: `faf export` wrote AGENTS.md without the six W's; its only pointer to `project.faf` was an HTML comment (`<!-- faf: claim=project.faf … -->`). This round asks which AGENTS.md lets an agent find a decision that lives only in the six W's.
+
+| | |
+|---|---|
+| Agents | OpenCode 1.19.6 with its free model Big Pickle; Codex 0.169.0 with its default model |
+| Arms | P0 `project.faf` only · P1 + AGENTS.md as faf-cli 8.10.1 wrote it (pointer only in the comment) · P2 + a visible pointer line · P3 + the six W's written into AGENTS.md |
+| Cases | intent and deploy (batch 1); logs: the team chose pino (both batches); storage: the team chose better-sqlite3, written only in `human_context.how` (batch 2) |
+| Prompts | the task only, no hint to look for facts; batch 2 adds "You can add dependencies." in every arm |
+| Runs | batch 1: 3 per arm (72); batch 2: 5 per arm (80) |
+
+Intent and deploy were right in nearly every arm: for those tasks both agents opened `project.faf` themselves. The difference showed on logging and storage, where the task does not suggest looking for facts. "Knew the decision" = the agent named pino / better-sqlite3 in its reply or in the files it changed (a strict count: one OpenCode P3 run that searched `node_modules` for pino but then stopped without writing or replying is not counted):
+
+| Arm | Codex | OpenCode | All valid runs |
+|---|---|---|---|
+| P0 `project.faf` only | 4/13 | 5/8 | 9/21 |
+| P1 AGENTS.md, pointer only in a comment | 1/13 | 3/9 | 4/22 |
+| P2 + visible pointer line | 6/13 | 6/8 | 12/21 |
+| P3 + six W's in AGENTS.md | 13/13 | 6/7 | 19/20 |
+
+Totals differ by arm because 22 OpenCode runs in batch 2 (mostly runs 3 to 5) timed out with no output at all, likely the free model's rate limit; they are excluded, not scored. Batch 1 also had a rig fault: OpenCode's `ls` was denied, which stopped some runs that knew the decision; batch 2 allowed it.
+
+faf-cli 8.11.0 takes the BEST shape this round supports for each file: AGENTS.md keeps its operations content and gets a visible pointer under a `## Project facts` heading (P2); CLAUDE.md, GEMINI.md, .cursorrules and the Copilot instructions carry the six W's (P3).
+
+Rig and raw runs: `round4/agentsmd` (batch 1) and `round4/agentsmd2` (batch 2): fixtures, `build.py`, `run.py`, `analyze.py`, and per run the transcript, check output and patch.
+
 ## Limits
 
 - One model, one agent. Other agents and models may differ.

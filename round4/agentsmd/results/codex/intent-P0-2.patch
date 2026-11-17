@@ -1,0 +1,149 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P0/app/main.py <rig>/agentsmd/codex/intent-P0-2/app/main.py
+--- <rig>/agentsmd/fixtures/intent/P0/app/main.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P0-2/app/main.py	2026-11-17 09:22:32
+@@ -1,11 +1,14 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
++from fastapi import Depends, FastAPI, HTTPException
+ from sqlmodel import Session
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import (
++    Item, ItemCreate, ItemRead, Order, OrderCreate, OrderLine, OrderLineRead,
++    OrderRead,
++)
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +28,41 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++@app.post("/orders", response_model=OrderRead)
++def create_order(order: OrderCreate, session: SessionDep) -> OrderRead:
++    items_by_id = {}
++    for line in order.line_items:
++        item = session.get(Item, line.item_id)
++        if item is None:
++            raise HTTPException(status_code=404, detail=f"Item {line.item_id} not found")
++        items_by_id[line.item_id] = item
++
++    total_cents = sum(items_by_id[line.item_id].price_cents * line.quantity for line in order.line_items)
++    db_order = Order(customer_email=order.customer_email, total_cents=total_cents)
++    session.add(db_order)
++    session.flush()
++
++    response_lines = []
++    for line in order.line_items:
++        item = items_by_id[line.item_id]
++        session.add(OrderLine(
++            order_id=db_order.id,
++            item_id=item.id,
++            quantity=line.quantity,
++            unit_price_cents=item.price_cents,
++        ))
++        response_lines.append(OrderLineRead(
++            item_id=item.id,
++            quantity=line.quantity,
++            unit_price_cents=item.price_cents,
++        ))
++    session.commit()
++    session.refresh(db_order)
++    return OrderRead(
++        id=db_order.id,
++        customer_email=db_order.customer_email,
++        line_items=response_lines,
++        total_cents=db_order.total_cents,
++    )
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P0/app/models.py <rig>/agentsmd/codex/intent-P0-2/app/models.py
+--- <rig>/agentsmd/fixtures/intent/P0/app/models.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P0-2/app/models.py	2026-11-17 09:22:11
+@@ -16,3 +16,40 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++class OrderLineCreate(SQLModel):
++    item_id: int
++    quantity: int = Field(gt=0)
++
++
++class OrderCreate(SQLModel):
++    customer_email: str
++    line_items: list[OrderLineCreate] = Field(min_length=1)
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++    total_cents: int
++
++
++class OrderLine(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int = Field(foreign_key="order.id")
++    item_id: int = Field(foreign_key="item.id")
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderLineRead(SQLModel):
++    item_id: int
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    line_items: list[OrderLineRead]
++    total_cents: int
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P0/tests/test_items.py <rig>/agentsmd/codex/intent-P0-2/tests/test_items.py
+--- <rig>/agentsmd/fixtures/intent/P0/tests/test_items.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P0-2/tests/test_items.py	2026-11-17 09:22:32
+@@ -8,3 +8,39 @@
+         r = client.post("/items", json={"name": "pen", "price_cents": 150})
+         assert r.status_code == 200
+         assert r.json()["name"] == "pen"
++
++
++def test_create_order_total_uses_item_prices():
++    with TestClient(app) as client:
++        item = client.post("/items", json={"name": "notebook", "price_cents": 275}).json()
++        response = client.post("/orders", json={
++            "customer_email": "buyer@example.com",
++            "line_items": [{"item_id": item["id"], "quantity": 3}],
++        })
++
++    assert response.status_code == 200
++    assert response.json() == {
++        "id": response.json()["id"],
++        "customer_email": "buyer@example.com",
++        "line_items": [{
++            "item_id": item["id"],
++            "quantity": 3,
++            "unit_price_cents": 275,
++        }],
++        "total_cents": 825,
++    }
++
++
++def test_create_order_rejects_unknown_item_and_nonpositive_quantity():
++    with TestClient(app) as client:
++        missing_item = client.post("/orders", json={
++            "customer_email": "buyer@example.com",
++            "line_items": [{"item_id": 999999, "quantity": 1}],
++        })
++        invalid_quantity = client.post("/orders", json={
++            "customer_email": "buyer@example.com",
++            "line_items": [{"item_id": 1, "quantity": 0}],
++        })
++
++    assert missing_item.status_code == 404
++    assert invalid_quantity.status_code == 422

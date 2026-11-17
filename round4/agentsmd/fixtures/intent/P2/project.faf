@@ -1,0 +1,45 @@
+faf_version: "3.0"
+project:
+  name: inventory-api
+  goal: "Inventory API for a small shop: items, then orders"
+  main_language: Python
+  type: backend  # found: no classifying signals — fallback
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: FastAPI
+  api_type: REST
+  runtime: Python 3.12 (uvicorn)
+  database: PostgreSQL (SQLite in tests)
+  connection: SQLModel
+  hosting: "Docker on Render"
+  build: "uv"
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "One Python developer"
+  what: "A JSON API over items"
+  why: "Replace a spreadsheet"
+  where: "Docker on Render"
+  when: "Items done. Next: orders, where an order has a customer email and line items (item id, quantity), and its total comes from item prices"
+  how: "FastAPI with SQLModel table models and Annotated Depends sessions"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - Python
+key_files:
+  - pyproject.toml
+commands:
+  test: pytest

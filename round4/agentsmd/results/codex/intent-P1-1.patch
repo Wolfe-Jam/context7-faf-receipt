@@ -1,0 +1,171 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P1/app/main.py <rig>/agentsmd/codex/intent-P1-1/app/main.py
+--- <rig>/agentsmd/fixtures/intent/P1/app/main.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P1-1/app/main.py	2026-11-17 09:17:55
+@@ -1,11 +1,19 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
++from fastapi import Depends, FastAPI, HTTPException
+ from sqlmodel import Session
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemRead,
++    Order,
++    OrderCreate,
++    OrderLine,
++    OrderRead,
++)
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +33,45 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++@app.post("/orders", response_model=OrderRead)
++def create_order(order: OrderCreate, session: SessionDep) -> OrderRead:
++    items_by_id = {}
++    for requested_line in order.line_items:
++        item = session.get(Item, requested_line.item_id)
++        if item is None:
++            raise HTTPException(status_code=404, detail=f"Item {requested_line.item_id} not found")
++        items_by_id[requested_line.item_id] = item
++
++    lines = [
++        OrderLine(
++            item_id=line.item_id,
++            quantity=line.quantity,
++            unit_price_cents=items_by_id[line.item_id].price_cents,
++        )
++        for line in order.line_items
++    ]
++    total_cents = sum(line.quantity * items_by_id[line.item_id].price_cents for line in order.line_items)
++    db_order = Order(customer_email=order.customer_email, total_cents=total_cents)
++    session.add(db_order)
++    session.flush()
++    for line in lines:
++        line.order_id = db_order.id
++        session.add(line)
++    session.commit()
++    session.refresh(db_order)
++    return OrderRead(
++        id=db_order.id,
++        customer_email=db_order.customer_email,
++        line_items=[
++            {
++                "item_id": line.item_id,
++                "quantity": line.quantity,
++                "unit_price_cents": line.unit_price_cents,
++                "subtotal_cents": line.quantity * line.unit_price_cents,
++            }
++            for line in lines
++        ],
++        total_cents=db_order.total_cents,
++    )
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P1/app/models.py <rig>/agentsmd/codex/intent-P1-1/app/models.py
+--- <rig>/agentsmd/fixtures/intent/P1/app/models.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P1-1/app/models.py	2026-11-17 09:17:43
+@@ -16,3 +16,41 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++class OrderLineCreate(SQLModel):
++    item_id: int
++    quantity: int = Field(gt=0)
++
++
++class OrderCreate(SQLModel):
++    customer_email: str
++    line_items: list[OrderLineCreate] = Field(min_length=1)
++
++
++class OrderLine(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int | None = Field(default=None, foreign_key="order.id")
++    item_id: int = Field(foreign_key="item.id")
++    quantity: int
++    unit_price_cents: int
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++    total_cents: int
++
++
++class OrderLineRead(SQLModel):
++    item_id: int
++    quantity: int
++    unit_price_cents: int
++    subtotal_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    line_items: list[OrderLineRead]
++    total_cents: int
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P1/tests/test_orders.py <rig>/agentsmd/codex/intent-P1-1/tests/test_orders.py
+--- <rig>/agentsmd/fixtures/intent/P1/tests/test_orders.py	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/intent-P1-1/tests/test_orders.py	2026-11-17 09:18:09
+@@ -0,0 +1,51 @@
++from fastapi.testclient import TestClient
++
++from app.main import app
++
++
++def test_create_order_uses_item_prices_for_line_and_order_totals():
++    with TestClient(app) as client:
++        pen = client.post("/items", json={"name": "order pen", "price_cents": 150}).json()
++        notebook = client.post("/items", json={"name": "order notebook", "price_cents": 425}).json()
++
++        response = client.post(
++            "/orders",
++            json={
++                "customer_email": "shopper@example.com",
++                "line_items": [
++                    {"item_id": pen["id"], "quantity": 2},
++                    {"item_id": notebook["id"], "quantity": 1},
++                ],
++            },
++        )
++
++    assert response.status_code == 200
++    assert response.json() == {
++        "id": response.json()["id"],
++        "customer_email": "shopper@example.com",
++        "line_items": [
++            {"item_id": pen["id"], "quantity": 2, "unit_price_cents": 150, "subtotal_cents": 300},
++            {"item_id": notebook["id"], "quantity": 1, "unit_price_cents": 425, "subtotal_cents": 425},
++        ],
++        "total_cents": 725,
++    }
++
++
++def test_create_order_rejects_unknown_item():
++    with TestClient(app) as client:
++        response = client.post(
++            "/orders",
++            json={"customer_email": "shopper@example.com", "line_items": [{"item_id": 999999, "quantity": 1}]},
++        )
++
++    assert response.status_code == 404
++
++
++def test_create_order_requires_positive_quantity():
++    with TestClient(app) as client:
++        response = client.post(
++            "/orders",
++            json={"customer_email": "shopper@example.com", "line_items": [{"item_id": 1, "quantity": 0}]},
++        )
++
++    assert response.status_code == 422

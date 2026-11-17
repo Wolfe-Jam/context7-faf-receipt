@@ -1,0 +1,209 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P1/app/main.py <rig>/agentsmd/codex/intent-P1-2/app/main.py
+--- <rig>/agentsmd/fixtures/intent/P1/app/main.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P1-2/app/main.py	2026-11-17 09:22:48
+@@ -1,11 +1,20 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
+-from sqlmodel import Session
++from fastapi import Depends, FastAPI, HTTPException
++from sqlmodel import Session, select
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemRead,
++    Order,
++    OrderCreate,
++    OrderLine,
++    OrderLineRead,
++    OrderRead,
++)
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +34,68 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++@app.post("/orders", response_model=OrderRead)
++def create_order(order: OrderCreate, session: SessionDep) -> OrderRead:
++    priced_lines: list[tuple[int, int, int]] = []
++    total_cents = 0
++    for line in order.items:
++        item = session.get(Item, line.item_id)
++        if item is None:
++            raise HTTPException(status_code=404, detail=f"Item {line.item_id} not found")
++        line_total = item.price_cents * line.quantity
++        total_cents += line_total
++        priced_lines.append((item.id, line.quantity, item.price_cents))
++
++    db_order = Order(customer_email=order.customer_email, total_cents=total_cents)
++    session.add(db_order)
++    session.flush()
++    lines = [
++        OrderLine(
++            order_id=db_order.id,
++            item_id=item_id,
++            quantity=quantity,
++            unit_price_cents=unit_price_cents,
++        )
++        for item_id, quantity, unit_price_cents in priced_lines
++    ]
++    session.add_all(lines)
++    session.commit()
++    session.refresh(db_order)
++    return OrderRead(
++        id=db_order.id,
++        customer_email=db_order.customer_email,
++        total_cents=db_order.total_cents,
++        items=[
++            OrderLineRead(
++                item_id=line.item_id,
++                quantity=line.quantity,
++                unit_price_cents=line.unit_price_cents,
++            )
++            for line in lines
++        ],
++    )
++
++
++@app.get("/orders/{order_id}", response_model=OrderRead)
++def read_order(order_id: int, session: SessionDep) -> OrderRead:
++    order = session.get(Order, order_id)
++    if order is None:
++        raise HTTPException(status_code=404, detail="Order not found")
++    lines = session.exec(
++        select(OrderLine).where(OrderLine.order_id == order_id)
++    ).all()
++    return OrderRead(
++        id=order.id,
++        customer_email=order.customer_email,
++        total_cents=order.total_cents,
++        items=[
++            OrderLineRead(
++                item_id=line.item_id,
++                quantity=line.quantity,
++                unit_price_cents=line.unit_price_cents,
++            )
++            for line in lines
++        ],
++    )
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P1/app/models.py <rig>/agentsmd/codex/intent-P1-2/app/models.py
+--- <rig>/agentsmd/fixtures/intent/P1/app/models.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P1-2/app/models.py	2026-11-17 09:22:17
+@@ -1,3 +1,4 @@
++from pydantic import Field as PydanticField, field_validator
+ from sqlmodel import Field, SQLModel
+ 
+ 
+@@ -16,3 +17,47 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++class OrderLineInput(SQLModel):
++    item_id: int
++    quantity: int = PydanticField(gt=0)
++
++
++class OrderCreate(SQLModel):
++    customer_email: str
++    items: list[OrderLineInput] = PydanticField(min_length=1)
++
++    @field_validator("customer_email")
++    @classmethod
++    def validate_customer_email(cls, value: str) -> str:
++        if "@" not in value or "." not in value.rsplit("@", 1)[-1]:
++            raise ValueError("must be a valid email address")
++        return value
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++    total_cents: int
++
++
++class OrderLine(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int = Field(foreign_key="order.id")
++    item_id: int = Field(foreign_key="item.id")
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderLineRead(SQLModel):
++    item_id: int
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    items: list[OrderLineRead]
++    total_cents: int
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/intent/P1/tests/test_items.py <rig>/agentsmd/codex/intent-P1-2/tests/test_items.py
+--- <rig>/agentsmd/fixtures/intent/P1/tests/test_items.py	2026-11-16 19:02:25
++++ <rig>/agentsmd/codex/intent-P1-2/tests/test_items.py	2026-11-17 09:22:48
+@@ -8,3 +8,53 @@
+         r = client.post("/items", json={"name": "pen", "price_cents": 150})
+         assert r.status_code == 200
+         assert r.json()["name"] == "pen"
++
++
++def test_create_order_calculates_total_from_item_prices():
++    with TestClient(app) as client:
++        pen = client.post("/items", json={"name": "order pen", "price_cents": 150}).json()
++        notebook = client.post(
++            "/items", json={"name": "order notebook", "price_cents": 425}
++        ).json()
++
++        response = client.post(
++            "/orders",
++            json={
++                "customer_email": "buyer@example.com",
++                "items": [
++                    {"item_id": pen["id"], "quantity": 2},
++                    {"item_id": notebook["id"], "quantity": 1},
++                ],
++            },
++        )
++
++        assert response.status_code == 200
++        order = response.json()
++        assert order["total_cents"] == 725
++        assert order["customer_email"] == "buyer@example.com"
++        assert [line["quantity"] for line in order["items"]] == [2, 1]
++
++        persisted = client.get(f"/orders/{order['id']}")
++        assert persisted.status_code == 200
++        assert persisted.json() == order
++
++
++def test_create_order_rejects_missing_items_and_nonpositive_quantities():
++    with TestClient(app) as client:
++        missing_item = client.post(
++            "/orders",
++            json={
++                "customer_email": "buyer@example.com",
++                "items": [{"item_id": 999999, "quantity": 1}],
++            },
++        )
++        invalid_quantity = client.post(
++            "/orders",
++            json={
++                "customer_email": "buyer@example.com",
++                "items": [{"item_id": 1, "quantity": 0}],
++            },
++        )
++
++        assert missing_item.status_code == 404
++        assert invalid_quantity.status_code == 422

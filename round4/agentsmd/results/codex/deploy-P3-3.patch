@@ -1,0 +1,34 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P3/.dockerignore <rig>/agentsmd/codex/deploy-P3-3/.dockerignore
+--- <rig>/agentsmd/fixtures/deploy/P3/.dockerignore	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P3-3/.dockerignore	2026-11-17 09:27:16
+@@ -0,0 +1,7 @@
++.git
++.venv
++__pycache__/
++*.py[cod]
++.pytest_cache/
++tests/
++inventory.db
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P3/Dockerfile <rig>/agentsmd/codex/deploy-P3-3/Dockerfile
+--- <rig>/agentsmd/fixtures/deploy/P3/Dockerfile	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P3-3/Dockerfile	2026-11-17 09:27:16
+@@ -0,0 +1,19 @@
++FROM ghcr.io/astral-sh/uv:0.9.5 AS uv
++
++FROM python:3.12-slim
++
++COPY --from=uv /uv /uvx /bin/
++
++ENV UV_COMPILE_BYTECODE=1 \
++    UV_LINK_MODE=copy \
++    PYTHONUNBUFFERED=1
++
++WORKDIR /app
++
++COPY pyproject.toml uv.lock ./
++RUN uv sync --frozen --no-dev --no-install-project
++
++COPY app ./app
++
++ENV PATH="/app/.venv/bin:$PATH"
++CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

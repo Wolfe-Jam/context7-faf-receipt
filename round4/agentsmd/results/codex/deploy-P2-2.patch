@@ -1,0 +1,51 @@
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P2/.dockerignore <rig>/agentsmd/codex/deploy-P2-2/.dockerignore
+--- <rig>/agentsmd/fixtures/deploy/P2/.dockerignore	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P2-2/.dockerignore	2026-11-17 09:23:47
+@@ -0,0 +1,10 @@
++.git
++.venv
++__pycache__
++**/__pycache__
++.pytest_cache
++.mypy_cache
++.ruff_cache
++*.py[cod]
++*.db
++tests
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P2/.uv-cache/.gitignore <rig>/agentsmd/codex/deploy-P2-2/.uv-cache/.gitignore
+--- <rig>/agentsmd/fixtures/deploy/P2/.uv-cache/.gitignore	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P2-2/.uv-cache/.gitignore	2026-11-17 09:23:57
+@@ -0,0 +1 @@
++*
+\ No newline at end of file
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P2/.uv-cache/CACHEDIR.TAG <rig>/agentsmd/codex/deploy-P2-2/.uv-cache/CACHEDIR.TAG
+--- <rig>/agentsmd/fixtures/deploy/P2/.uv-cache/CACHEDIR.TAG	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P2-2/.uv-cache/CACHEDIR.TAG	2026-11-17 09:23:57
+@@ -0,0 +1 @@
++Signature: 8a477f597d28d172789f06886806bc55
+\ No newline at end of file
+Binary files <rig>/agentsmd/fixtures/deploy/P2/.uv-cache/interpreter-v4/74abd4a8b0f660fd/9c3f20a652cdddde.msgpack and <rig>/agentsmd/codex/deploy-P2-2/.uv-cache/interpreter-v4/74abd4a8b0f660fd/9c3f20a652cdddde.msgpack differ
+diff -ruN -x node_modules -x .venv -x __pycache__ -x .pytest_cache -x *.db -x data -x uv.lock -x package-lock.json -x bun.lock -x opencode.json <rig>/agentsmd/fixtures/deploy/P2/Dockerfile <rig>/agentsmd/codex/deploy-P2-2/Dockerfile
+--- <rig>/agentsmd/fixtures/deploy/P2/Dockerfile	1969-12-31 19:00:00
++++ <rig>/agentsmd/codex/deploy-P2-2/Dockerfile	2026-11-17 09:23:47
+@@ -0,0 +1,20 @@
++FROM python:3.12-slim
++
++COPY --from=ghcr.io/astral-sh/uv:0.11.12 /uv /uvx /bin/
++
++WORKDIR /app
++
++ENV PYTHONDONTWRITEBYTECODE=1 \
++    PYTHONUNBUFFERED=1 \
++    UV_COMPILE_BYTECODE=1 \
++    UV_LINK_MODE=copy
++
++COPY pyproject.toml uv.lock ./
++RUN uv sync --frozen --no-dev --no-install-project
++
++COPY app ./app
++
++ENV PATH="/app/.venv/bin:$PATH"
++EXPOSE 8080
++
++CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
