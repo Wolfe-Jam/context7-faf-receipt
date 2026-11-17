@@ -95,7 +95,7 @@ Intent and deploy were right in nearly every arm: for those tasks both agents op
 | P2 + visible pointer line | 6/13 | 6/8 | 12/21 |
 | P3 + six W's in AGENTS.md | 13/13 | 6/7 | 19/20 |
 
-Totals differ by arm because 22 OpenCode runs in batch 2 (mostly runs 3 to 5) timed out with no output at all, likely the free model's rate limit; they are excluded, not scored. Batch 1 also had a rig fault: OpenCode's `ls` was denied, which stopped some runs that knew the decision; batch 2 allowed it.
+Totals differ by arm because 20 OpenCode runs in batch 2 (mostly runs 3 to 5) timed out with no output at all, likely the free model's rate limit; they are excluded, not scored. One more timed out after producing output and is scored on what it did. Of 152 runs launched, the table counts the 84 on the logging and storage tasks. Batch 1 also had a rig fault: OpenCode's `ls` was denied, which stopped some runs that knew the decision; batch 2 allowed it.
 
 faf-cli 8.11.0 takes the BEST shape this round supports for each file: AGENTS.md keeps its operations content and gets a visible pointer under a `## Project facts` heading (P2); CLAUDE.md, GEMINI.md, .cursorrules and the Copilot instructions carry the six W's (P3).
 
