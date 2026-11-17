@@ -1,0 +1,21 @@
+
+> files-api@0.1.0 test
+> node --test
+
+✔ metadata for top-level file (424.699083ms)
+✔ metadata for nested path with slashes (68.006651ms)
+✔ directory reports type directory (6.100377ms)
+✔ missing file gives JSON 404 (4.430443ms)
+✔ path traversal is rejected (7.571524ms)
+✔ unknown route gives JSON 404 (10.039332ms)
+✔ GET /health (163.939615ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 979.807304
+
+exit=0 wall=49

@@ -1,0 +1,13 @@
+
+> team-directory@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+
+====================================
+Loading svelte-check in workspace: <rig>/runs2/svelte4-A-1
+Getting Svelte diagnostics...
+
+====================================
+svelte-check found 0 errors and 0 warnings
+
+exit=0 wall=36

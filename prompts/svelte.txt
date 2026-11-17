@@ -1,0 +1,1 @@
+Add a users table (email, name) and a sign-up page where someone enters their email and name and is saved as a user. Run `npm run check` and make sure it passes. use context7

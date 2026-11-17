@@ -1,0 +1,76 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/A/src/app.js <rig>/runs3/express5-A-1/src/app.js
+--- <rig>/cases/express5/A/src/app.js	2026-11-16 20:19:30
++++ <rig>/runs3/express5-A-1/src/app.js	2026-11-16 20:57:33
+@@ -6,3 +6,21 @@
+ app.get('/health', (req, res) => {
+   res.json({ ok: true });
+ });
++
++// Express 5: wildcards must be named; req.params.path is an array of segments.
++app.get('/files/*path', (req, res) => {
++  const segments = req.params.path;
++  const name = segments[segments.length - 1];
++  const dot = name.lastIndexOf('.');
++  res.json({
++    path: segments.join('/'),
++    name,
++    extension: dot > 0 ? name.slice(dot + 1) : null,
++    directory: segments.slice(0, -1).join('/'),
++    depth: segments.length,
++  });
++});
++
++app.use((req, res) => {
++  res.status(404).json({ error: 'Not Found', path: req.path });
++});
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/A/test/files.test.js <rig>/runs3/express5-A-1/test/files.test.js
+--- <rig>/cases/express5/A/test/files.test.js	1969-12-31 19:00:00
++++ <rig>/runs3/express5-A-1/test/files.test.js	2026-11-16 20:57:36
+@@ -0,0 +1,47 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { app } from '../src/app.js';
++
++async function get(path) {
++  const server = app.listen(0);
++  try {
++    const { port } = server.address();
++    const r = await fetch(`http://127.0.0.1:${port}${path}`);
++    return { status: r.status, type: r.headers.get('content-type'), body: await r.json() };
++  } finally {
++    server.close();
++  }
++}
++
++test('GET /files/<single segment>', async () => {
++  const r = await get('/files/readme.md');
++  assert.equal(r.status, 200);
++  assert.deepEqual(r.body, { path: 'readme.md', name: 'readme.md', extension: 'md', directory: '', depth: 1 });
++});
++
++test('GET /files/<nested path with slashes>', async () => {
++  const r = await get('/files/a/b/c/archive.tar.gz');
++  assert.equal(r.status, 200);
++  assert.equal(r.body.path, 'a/b/c/archive.tar.gz');
++  assert.equal(r.body.directory, 'a/b/c');
++  assert.equal(r.body.extension, 'gz');
++  assert.equal(r.body.depth, 4);
++});
++
++test('file without extension', async () => {
++  const r = await get('/files/bin/Makefile');
++  assert.equal(r.body.extension, null);
++});
++
++test('GET /files/ with no path is a JSON 404', async () => {
++  const r = await get('/files/');
++  assert.equal(r.status, 404);
++  assert.match(r.type, /application\/json/);
++});
++
++test('unknown route returns JSON 404', async () => {
++  const r = await get('/nope/at/all');
++  assert.equal(r.status, 404);
++  assert.match(r.type, /application\/json/);
++  assert.equal(r.body.error, 'Not Found');
++});

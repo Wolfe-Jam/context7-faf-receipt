@@ -1,0 +1,93 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/fastapi/app/main.py <rig>/runs/fastapi-B-1/app/main.py
+--- <rig>/fixtures-b/fastapi/app/main.py	2026-11-16 19:02:25
++++ <rig>/runs/fastapi-B-1/app/main.py	2026-11-16 19:19:15
+@@ -1,8 +1,8 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
+-from sqlmodel import Session
++from fastapi import Depends, FastAPI, Query
++from sqlmodel import Session, select
+ 
+ from app.db import get_session, init_db
+ from app.models import Item, ItemCreate, ItemRead
+@@ -25,3 +25,13 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++@app.get("/items", response_model=list[ItemRead])
++def list_items(
++    session: SessionDep,
++    offset: Annotated[int, Query(ge=0)] = 0,
++    limit: Annotated[int, Query(ge=1, le=100)] = 100,
++) -> list[Item]:
++    statement = select(Item).order_by(Item.id).offset(offset).limit(limit)
++    return list(session.exec(statement).all())
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/fastapi/tests/test_items.py <rig>/runs/fastapi-B-1/tests/test_items.py
+--- <rig>/fixtures-b/fastapi/tests/test_items.py	2026-11-16 19:02:25
++++ <rig>/runs/fastapi-B-1/tests/test_items.py	2026-11-16 19:19:19
+@@ -1,10 +1,56 @@
++from collections.abc import Iterator
++
++import pytest
+ from fastapi.testclient import TestClient
++from sqlmodel import Session, SQLModel, create_engine
++from sqlmodel.pool import StaticPool
+ 
++from app.db import get_session
+ from app.main import app
+ 
+ 
+-def test_create_item():
+-    with TestClient(app) as client:
+-        r = client.post("/items", json={"name": "pen", "price_cents": 150})
+-        assert r.status_code == 200
+-        assert r.json()["name"] == "pen"
++@pytest.fixture
++def client() -> Iterator[TestClient]:
++    engine = create_engine(
++        "sqlite://",
++        connect_args={"check_same_thread": False},
++        poolclass=StaticPool,
++    )
++    SQLModel.metadata.create_all(engine)
++
++    def override_session() -> Iterator[Session]:
++        with Session(engine) as session:
++            yield session
++
++    app.dependency_overrides[get_session] = override_session
++    with TestClient(app) as c:
++        yield c
++    app.dependency_overrides.clear()
++
++
++def test_create_item(client: TestClient):
++    r = client.post("/items", json={"name": "pen", "price_cents": 150})
++    assert r.status_code == 200
++    assert r.json()["name"] == "pen"
++
++
++def test_list_items_pagination(client: TestClient):
++    for i in range(5):
++        client.post("/items", json={"name": f"item{i}", "price_cents": i})
++
++    r = client.get("/items")
++    assert r.status_code == 200
++    assert [x["name"] for x in r.json()] == [f"item{i}" for i in range(5)]
++
++    r = client.get("/items", params={"offset": 1, "limit": 2})
++    assert [x["name"] for x in r.json()] == ["item1", "item2"]
++
++    r = client.get("/items", params={"offset": 10})
++    assert r.json() == []
++
++
++def test_list_items_limit_validation(client: TestClient):
++    assert client.get("/items", params={"limit": 100}).status_code == 200
++    assert client.get("/items", params={"limit": 101}).status_code == 422
++    assert client.get("/items", params={"limit": 0}).status_code == 422
++    assert client.get("/items", params={"offset": -1}).status_code == 422

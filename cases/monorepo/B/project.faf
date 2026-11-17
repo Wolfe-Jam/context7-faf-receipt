@@ -1,0 +1,43 @@
+faf_version: "3.0"
+project:
+  name: acme
+  goal: "Acme shop: storefront web app and its API"
+  main_language: TypeScript
+  type: monorepo-root  # found: private workspace + multi-package
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: slotignored
+  api_type: slotignored
+  runtime: slotignored
+  database: slotignored
+  connection: slotignored
+  hosting: slotignored
+  build: slotignored
+  cicd: slotignored
+  monorepo_tool: "Bun workspaces"
+  package_manager: bun
+  workspaces: "apps/*, packages/*"
+  admin: "Cloudflare dashboard"
+  cache: "Cloudflare KV"
+  search: "Postgres full-text (planned with checkout)"
+  storage: "Cloudflare R2"
+human_context:
+  who: "Full-stack team of four"
+  what: "Bun workspaces: apps/api (Hono), apps/web, packages/shared"
+  why: "One repo, shared types"
+  where: "Cloudflare Workers (api) and Pages (web)"
+  when: "Checkout next"
+  how: "HTTP endpoints only in apps/api (Hono); shared constants and types only from @acme/shared, never duplicated"
+monorepo:
+  packages_count: "3 (@acme/api, @acme/web, @acme/shared)"
+  build_orchestrator: "bun run in each package (no turbo/nx)"
+  versioning_strategy: "Private packages, not published; workspace:*"
+  shared_configs: "Each app owns its tsconfig.json"
+  remote_cache: "Bun install cache in CI"
+tech_stack:
+  - TypeScript
+key_files:
+  - package.json

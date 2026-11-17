@@ -1,0 +1,21 @@
+
+> files-api@0.1.0 test
+> node --test
+
+✔ returns metadata for nested file path (124.313186ms)
+✔ returns metadata for a directory (6.144512ms)
+✔ missing file gives JSON 404 (46.706599ms)
+✔ path traversal cannot escape root (5.902618ms)
+✔ unknown route gives JSON 404 (4.026707ms)
+✔ unsupported method on known route gives JSON 404 (25.111105ms)
+✔ GET /health (101.675668ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 539.90578
+
+exit=0 wall=47

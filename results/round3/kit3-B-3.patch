@@ -1,0 +1,50 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/kit3/B/src/routes/+page.svelte <rig>/runs3/kit3-B-3/src/routes/+page.svelte
+--- <rig>/cases/kit3/B/src/routes/+page.svelte	2026-11-16 20:54:50
++++ <rig>/runs3/kit3-B-3/src/routes/+page.svelte	2026-11-16 21:05:05
+@@ -1,12 +1,31 @@
+ <script lang="ts">
++  import { goto } from '$app/navigation';
+   import { formatMinutes } from '#lib/recipes.js';
+ 
+   let { data } = $props();
++
++  function onInput(e: Event & { currentTarget: HTMLInputElement }) {
++    const value = e.currentTarget.value;
++    const params = new URLSearchParams();
++    if (value.trim()) params.set('q', value);
++    const qs = params.toString();
++    goto(qs ? `?${qs}` : '?', { replace: true, reset: false });
++  }
+ </script>
+ 
+ <h1>Recipe box</h1>
++
++<form method="GET" role="search">
++  <label>
++    Search recipes
++    <input type="search" name="q" value={data.q} oninput={onInput} />
++  </label>
++</form>
++
+ <ul>
+   {#each data.recipes as recipe (recipe.id)}
+     <li>{recipe.title} · {formatMinutes(recipe.minutes)}</li>
++  {:else}
++    <li>No recipes match “{data.q}”.</li>
+   {/each}
+ </ul>
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/kit3/B/src/routes/+page.ts <rig>/runs3/kit3-B-3/src/routes/+page.ts
+--- <rig>/cases/kit3/B/src/routes/+page.ts	2026-11-16 20:54:50
++++ <rig>/runs3/kit3-B-3/src/routes/+page.ts	2026-11-16 21:05:02
+@@ -1,3 +1,10 @@
+ import { recipes } from '#lib/recipes.js';
+ 
+-export const load = () => ({ recipes });
++export const load = ({ url }) => {
++  const q = url.searchParams.get('q') ?? '';
++  const needle = q.trim().toLowerCase();
++  return {
++    q,
++    recipes: needle ? recipes.filter((r) => r.title.toLowerCase().includes(needle)) : recipes
++  };
++};

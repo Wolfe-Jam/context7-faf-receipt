@@ -1,0 +1,99 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/logs/A/src/app.js <rig>/runs3/logs-A-1/src/app.js
+--- <rig>/cases/logs/A/src/app.js	2026-11-16 20:19:30
++++ <rig>/runs3/logs-A-1/src/app.js	2026-11-16 20:59:23
+@@ -1,8 +1,33 @@
+ import express from 'express';
++import { logger } from './logger.js';
+ 
++// Request logging: one line per completed request.
++export const requestLogger = (req, res, next) => {
++  const start = process.hrtime.bigint();
++  res.on('finish', () => {
++    const ms = Number(process.hrtime.bigint() - start) / 1e6;
++    logger.info(
++      `${req.method} ${req.originalUrl} ${res.statusCode} ${ms.toFixed(1)}ms`,
++    );
++  });
++  next();
++};
++
++// Error-handling middleware (4 args, registered last). Express 5 also routes
++// rejected promises from async handlers here.
++export const errorHandler = (err, req, res, next) => {
++  logger.error(`Unhandled error on ${req.method} ${req.originalUrl}`, err);
++  if (res.headersSent) return next(err);
++  const status = err.status ?? err.statusCode ?? 500;
++  res.status(status).json({ error: status >= 500 ? 'Internal Server Error' : err.message });
++};
++
+ export const app = express();
++app.use(requestLogger);
+ app.use(express.json());
+ 
+ app.get('/health', (req, res) => {
+   res.json({ ok: true });
+ });
++
++app.use(errorHandler);
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/logs/A/src/logger.js <rig>/runs3/logs-A-1/src/logger.js
+--- <rig>/cases/logs/A/src/logger.js	1969-12-31 19:00:00
++++ <rig>/runs3/logs-A-1/src/logger.js	2026-11-16 20:59:08
+@@ -0,0 +1,7 @@
++const fmt = (level, msg, err) =>
++  `${new Date().toISOString()} ${level} ${msg}${err ? `\n${err.stack ?? err}` : ''}`;
++
++export const logger = {
++  info: (msg) => console.log(fmt('INFO', msg)),
++  error: (msg, err) => console.error(fmt('ERROR', msg, err)),
++};
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/logs/A/src/server.js <rig>/runs3/logs-A-1/src/server.js
+--- <rig>/cases/logs/A/src/server.js	2026-11-16 20:19:30
++++ <rig>/runs3/logs-A-1/src/server.js	2026-11-16 20:59:10
+@@ -1,3 +1,14 @@
+ import { app } from './app.js';
++import { logger } from './logger.js';
+ 
+-app.listen(process.env.PORT ?? 3000);
++process.on('uncaughtException', (err) => {
++  logger.error('Uncaught exception', err);
++  process.exit(1);
++});
++process.on('unhandledRejection', (reason) => {
++  logger.error('Unhandled rejection', reason instanceof Error ? reason : new Error(String(reason)));
++  process.exit(1);
++});
++
++const port = process.env.PORT ?? 3000;
++app.listen(port, () => logger.info(`Listening on ${port}`));
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/logs/A/test/errors.test.js <rig>/runs3/logs-A-1/test/errors.test.js
+--- <rig>/cases/logs/A/test/errors.test.js	1969-12-31 19:00:00
++++ <rig>/runs3/logs-A-1/test/errors.test.js	2026-11-16 20:59:26
+@@ -0,0 +1,28 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import express from 'express';
++import { logger } from '../src/logger.js';
++import { requestLogger, errorHandler } from '../src/app.js';
++
++test('requests are logged and unhandled async errors are logged with 500', async (t) => {
++  const infos = [];
++  const errors = [];
++  t.mock.method(logger, 'info', (m) => infos.push(m));
++  t.mock.method(logger, 'error', (m, err) => errors.push({ m, err }));
++
++  const app = express();
++  app.use(requestLogger);
++  app.get('/boom', async () => {
++    throw new Error('boom');
++  });
++  app.use(errorHandler);
++
++  const server = app.listen(0);
++  const r = await fetch(`http://127.0.0.1:${server.address().port}/boom`);
++  server.close();
++
++  assert.equal(r.status, 500);
++  assert.equal(errors.length, 1);
++  assert.equal(errors[0].err.message, 'boom');
++  assert.match(infos[0], /^GET \/boom 500 /);
++});

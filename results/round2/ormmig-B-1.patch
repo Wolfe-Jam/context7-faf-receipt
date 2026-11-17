@@ -1,0 +1,48 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/ormmig/B/drizzle.config.ts <rig>/runs2/ormmig-B-1/drizzle.config.ts
+--- <rig>/cases/ormmig/B/drizzle.config.ts	1969-12-31 19:00:00
++++ <rig>/runs2/ormmig-B-1/drizzle.config.ts	2026-11-16 20:26:29
+@@ -0,0 +1,8 @@
++import { defineConfig } from 'drizzle-kit';
++
++export default defineConfig({
++  dialect: 'postgresql',
++  schema: './src/db/schema.ts',
++  out: './drizzle',
++  dbCredentials: { url: process.env.DATABASE_URL ?? 'postgres://localhost/blog' }
++});
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/ormmig/B/src/comments.ts <rig>/runs2/ormmig-B-1/src/comments.ts
+--- <rig>/cases/ormmig/B/src/comments.ts	1969-12-31 19:00:00
++++ <rig>/runs2/ormmig-B-1/src/comments.ts	2026-11-16 20:26:10
+@@ -0,0 +1,11 @@
++import { desc, eq } from 'drizzle-orm';
++import { db } from './db';
++import { comments } from './db/schema';
++
++export function listCommentsForPost(postId: number) {
++  return db
++    .select()
++    .from(comments)
++    .where(eq(comments.postId, postId))
++    .orderBy(desc(comments.createdAt), desc(comments.id));
++}
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/ormmig/B/src/db/schema.ts <rig>/runs2/ormmig-B-1/src/db/schema.ts
+--- <rig>/cases/ormmig/B/src/db/schema.ts	2026-11-16 20:20:22
++++ <rig>/runs2/ormmig-B-1/src/db/schema.ts	2026-11-16 20:26:08
+@@ -1,7 +1,16 @@
+-import { pgTable, serial, text } from 'drizzle-orm/pg-core';
++import { integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
+ 
+ export const authors = pgTable('authors', {
+   id: serial('id').primaryKey(),
+   name: text('name').notNull(),
+   email: text('email').notNull().unique()
++});
++
++// posts still live in Prisma, so post_id is a plain integer (no FK) until posts move to Drizzle.
++export const comments = pgTable('comments', {
++  id: serial('id').primaryKey(),
++  postId: integer('post_id').notNull(),
++  authorName: text('author_name').notNull(),
++  body: text('body').notNull(),
++  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+ });

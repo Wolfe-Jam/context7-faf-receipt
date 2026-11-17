@@ -1,0 +1,202 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/A2/app/main.py <rig>/runs3/intent-A2-3/app/main.py
+--- <rig>/cases/intent/A2/app/main.py	2026-11-16 19:02:25
++++ <rig>/runs3/intent-A2-3/app/main.py	2026-11-17 01:38:42
+@@ -1,11 +1,19 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
++from fastapi import Depends, FastAPI, HTTPException
+ from sqlmodel import Session
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemRead,
++    Order,
++    OrderCreate,
++    OrderLine,
++    OrderRead,
++)
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +33,46 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def to_order_read(order: Order) -> OrderRead:
++    return OrderRead(
++        id=order.id,
++        customer_email=order.customer_email,
++        lines=order.lines,
++        total_cents=sum(line.quantity * line.unit_price_cents for line in order.lines),
++    )
++
++
++@app.post("/orders", response_model=OrderRead, status_code=201)
++def create_order(data: OrderCreate, session: SessionDep) -> OrderRead:
++    prices: dict[int, int] = {}
++    for line in data.lines:
++        if line.item_id not in prices:
++            item = session.get(Item, line.item_id)
++            if item is None:
++                raise HTTPException(422, f"Item {line.item_id} does not exist")
++            prices[line.item_id] = item.price_cents
++    order = Order(customer_email=data.customer_email)
++    session.add(order)
++    session.flush()
++    for line in data.lines:
++        session.add(
++            OrderLine(
++                order_id=order.id,
++                item_id=line.item_id,
++                quantity=line.quantity,
++                unit_price_cents=prices[line.item_id],
++            )
++        )
++    session.commit()
++    session.refresh(order)
++    return to_order_read(order)
++
++
++@app.get("/orders/{order_id}", response_model=OrderRead)
++def get_order(order_id: int, session: SessionDep) -> OrderRead:
++    order = session.get(Order, order_id)
++    if order is None:
++        raise HTTPException(404, "Order not found")
++    return to_order_read(order)
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/A2/app/models.py <rig>/runs3/intent-A2-3/app/models.py
+--- <rig>/cases/intent/A2/app/models.py	2026-11-16 19:02:25
++++ <rig>/runs3/intent-A2-3/app/models.py	2026-11-17 01:38:39
+@@ -1,4 +1,4 @@
+-from sqlmodel import Field, SQLModel
++from sqlmodel import Field, Relationship, SQLModel
+ 
+ 
+ class ItemBase(SQLModel):
+@@ -16,3 +16,41 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++    lines: list["OrderLine"] = Relationship(back_populates="order")
++
++
++class OrderLine(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int = Field(foreign_key="order.id", index=True)
++    item_id: int = Field(foreign_key="item.id")
++    quantity: int
++    unit_price_cents: int  # snapshot of the item price at order time
++    order: Order | None = Relationship(back_populates="lines")
++
++
++class OrderLineCreate(SQLModel):
++    item_id: int
++    quantity: int = Field(gt=0)
++
++
++class OrderCreate(SQLModel):
++    customer_email: str
++    lines: list[OrderLineCreate] = Field(min_length=1)
++
++
++class OrderLineRead(SQLModel):
++    item_id: int
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    lines: list[OrderLineRead]
++    total_cents: int
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/A2/tests/conftest.py <rig>/runs3/intent-A2-3/tests/conftest.py
+--- <rig>/cases/intent/A2/tests/conftest.py	1969-12-31 19:00:00
++++ <rig>/runs3/intent-A2-3/tests/conftest.py	2026-11-17 01:38:33
+@@ -0,0 +1,26 @@
++import pytest
++from fastapi.testclient import TestClient
++from sqlmodel import Session, SQLModel, create_engine
++from sqlmodel.pool import StaticPool
++
++from app.db import get_session
++from app.main import app
++
++
++@pytest.fixture
++def client():
++    engine = create_engine(
++        "sqlite://",
++        connect_args={"check_same_thread": False},
++        poolclass=StaticPool,
++    )
++    SQLModel.metadata.create_all(engine)
++
++    def override():
++        with Session(engine) as session:
++            yield session
++
++    app.dependency_overrides[get_session] = override
++    with TestClient(app) as c:
++        yield c
++    app.dependency_overrides.clear()
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/A2/tests/test_orders.py <rig>/runs3/intent-A2-3/tests/test_orders.py
+--- <rig>/cases/intent/A2/tests/test_orders.py	1969-12-31 19:00:00
++++ <rig>/runs3/intent-A2-3/tests/test_orders.py	2026-11-17 01:38:36
+@@ -0,0 +1,45 @@
++def make_item(client, name, price):
++    return client.post("/items", json={"name": name, "price_cents": price}).json()["id"]
++
++
++def place(client, lines, email="a@example.com"):
++    return client.post("/orders", json={"customer_email": email, "lines": lines})
++
++
++def test_create_order_computes_total(client):
++    pen = make_item(client, "pen", 150)
++    pad = make_item(client, "pad", 400)
++    r = place(client, [{"item_id": pen, "quantity": 3}, {"item_id": pad, "quantity": 1}])
++    assert r.status_code == 201
++    body = r.json()
++    assert body["total_cents"] == 850
++    assert len(body["lines"]) == 2
++
++
++def test_get_order(client):
++    pen = make_item(client, "pen", 150)
++    oid = place(client, [{"item_id": pen, "quantity": 2}]).json()["id"]
++    r = client.get(f"/orders/{oid}")
++    assert r.status_code == 200
++    assert r.json()["total_cents"] == 300
++    assert r.json()["customer_email"] == "a@example.com"
++
++
++def test_get_missing_order(client):
++    assert client.get("/orders/999").status_code == 404
++
++
++def test_unknown_item_rejected(client):
++    assert place(client, [{"item_id": 42, "quantity": 1}]).status_code == 422
++
++
++def test_invalid_quantity_and_empty_lines(client):
++    pen = make_item(client, "pen", 150)
++    assert place(client, [{"item_id": pen, "quantity": 0}]).status_code == 422
++    assert place(client, []).status_code == 422
++
++
++def test_line_price_is_snapshot(client):
++    pen = make_item(client, "pen", 150)
++    oid = place(client, [{"item_id": pen, "quantity": 1}]).json()["id"]
++    assert client.get(f"/orders/{oid}").json()["lines"][0]["unit_price_cents"] == 150

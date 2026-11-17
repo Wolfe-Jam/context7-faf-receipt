@@ -1,0 +1,6 @@
+
+> bookmarks@0.2.0 check
+> tsc --noEmit
+
+
+exit=0 wall=32

@@ -1,0 +1,77 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures/svelte/src/lib/server/db/schema.ts <rig>/runs/svelte-A-1/src/lib/server/db/schema.ts
+--- <rig>/fixtures/svelte/src/lib/server/db/schema.ts	2026-11-16 18:59:05
++++ <rig>/runs/svelte-A-1/src/lib/server/db/schema.ts	2026-11-16 19:17:22
+@@ -6,3 +6,10 @@
+   body: text('body').notNull(),
+   createdAt: timestamp('created_at').defaultNow().notNull()
+ });
++
++export const users = pgTable('users', {
++  id: serial('id').primaryKey(),
++  email: text('email').notNull().unique(),
++  name: text('name').notNull(),
++  createdAt: timestamp('created_at').defaultNow().notNull()
++});
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures/svelte/src/routes/signup/+page.server.ts <rig>/runs/svelte-A-1/src/routes/signup/+page.server.ts
+--- <rig>/fixtures/svelte/src/routes/signup/+page.server.ts	1969-12-31 19:00:00
++++ <rig>/runs/svelte-A-1/src/routes/signup/+page.server.ts	2026-11-16 19:17:24
+@@ -0,0 +1,28 @@
++import { db } from '$lib/server/db';
++import { users } from '$lib/server/db/schema';
++import { fail } from '@sveltejs/kit';
++import type { Actions } from './$types';
++
++export const actions: Actions = {
++  default: async ({ request }) => {
++    const data = await request.formData();
++    const email = String(data.get('email') ?? '').trim().toLowerCase();
++    const name = String(data.get('name') ?? '').trim();
++
++    if (!name) return fail(400, { email, name, error: 'Name is required.' });
++    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
++      return fail(400, { email, name, error: 'Enter a valid email address.' });
++    }
++
++    const inserted = await db
++      .insert(users)
++      .values({ email, name })
++      .onConflictDoNothing({ target: users.email })
++      .returning({ id: users.id });
++
++    if (inserted.length === 0) {
++      return fail(409, { email, name, error: 'That email is already registered.' });
++    }
++    return { success: true };
++  }
++};
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures/svelte/src/routes/signup/+page.svelte <rig>/runs/svelte-A-1/src/routes/signup/+page.svelte
+--- <rig>/fixtures/svelte/src/routes/signup/+page.svelte	1969-12-31 19:00:00
++++ <rig>/runs/svelte-A-1/src/routes/signup/+page.svelte	2026-11-16 19:17:26
+@@ -0,0 +1,27 @@
++<script lang="ts">
++  import { enhance } from '$app/forms';
++  import type { PageProps } from './$types';
++
++  let { form }: PageProps = $props();
++</script>
++
++<h1>Sign up</h1>
++
++{#if form?.success}
++  <p>Thanks for signing up!</p>
++{/if}
++{#if form?.error}
++  <p role="alert">{form.error}</p>
++{/if}
++
++<form method="POST" use:enhance>
++  <label>
++    Name
++    <input name="name" required value={form?.name ?? ''} />
++  </label>
++  <label>
++    Email
++    <input name="email" type="email" required value={form?.email ?? ''} />
++  </label>
++  <button type="submit">Sign up</button>
++</form>

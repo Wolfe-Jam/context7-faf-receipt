@@ -1,0 +1,21 @@
+
+> files-api@0.1.0 test
+> node --test
+
+✔ GET /files/<single segment> (81.782786ms)
+✔ GET /files/<nested path with slashes> (9.93399ms)
+✔ file without extension / dotfile has empty extension (8.603745ms)
+✔ GET /files/ with no path is a JSON 404 (19.687805ms)
+✔ unknown route returns JSON 404 (10.99665ms)
+✔ unknown method on known route is JSON 404 (2.989121ms)
+✔ GET /health (89.091152ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 426.579947
+
+exit=0 wall=38

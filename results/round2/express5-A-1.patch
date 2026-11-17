@@ -1,0 +1,81 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/A/src/app.js <rig>/runs2/express5-A-1/src/app.js
+--- <rig>/cases/express5/A/src/app.js	2026-11-16 20:19:30
++++ <rig>/runs2/express5-A-1/src/app.js	2026-11-16 20:25:59
+@@ -6,3 +6,21 @@
+ app.get('/health', (req, res) => {
+   res.json({ ok: true });
+ });
++
++// Express 5 / path-to-regexp v8: `*path` captures one or more segments as an array.
++app.get('/files/*path', (req, res) => {
++  const segments = req.params.path;
++  const name = segments[segments.length - 1];
++  const dot = name.lastIndexOf('.');
++  res.json({
++    path: segments.join('/'),
++    name,
++    directory: segments.slice(0, -1).join('/'),
++    extension: dot > 0 ? name.slice(dot + 1) : '',
++    segments,
++  });
++});
++
++app.use((req, res) => {
++  res.status(404).json({ error: 'Not Found', path: req.path });
++});
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/A/test/files.test.js <rig>/runs2/express5-A-1/test/files.test.js
+--- <rig>/cases/express5/A/test/files.test.js	1969-12-31 19:00:00
++++ <rig>/runs2/express5-A-1/test/files.test.js	2026-11-16 20:26:03
+@@ -0,0 +1,52 @@
++import { test, before, after } from 'node:test';
++import assert from 'node:assert/strict';
++import { app } from '../src/app.js';
++
++let server, base;
++before(() => {
++  server = app.listen(0);
++  base = `http://127.0.0.1:${server.address().port}`;
++});
++after(() => server.close());
++
++test('single-segment file', async () => {
++  const r = await fetch(`${base}/files/readme.md`);
++  assert.equal(r.status, 200);
++  assert.deepEqual(await r.json(), {
++    path: 'readme.md', name: 'readme.md', directory: '', extension: 'md', segments: ['readme.md'],
++  });
++});
++
++test('nested path with slashes', async () => {
++  const r = await fetch(`${base}/files/a/b/c/archive.tar.gz`);
++  assert.equal(r.status, 200);
++  const body = await r.json();
++  assert.equal(body.path, 'a/b/c/archive.tar.gz');
++  assert.equal(body.directory, 'a/b/c');
++  assert.equal(body.extension, 'gz');
++  assert.deepEqual(body.segments, ['a', 'b', 'c', 'archive.tar.gz']);
++});
++
++test('dotfile has no extension', async () => {
++  const body = await (await fetch(`${base}/files/dir/.gitignore`)).json();
++  assert.equal(body.extension, '');
++});
++
++test('/files/ with no path is a JSON 404', async () => {
++  const r = await fetch(`${base}/files/`);
++  assert.equal(r.status, 404);
++  assert.match(r.headers.get('content-type'), /application\/json/);
++});
++
++test('unknown route returns JSON 404', async () => {
++  const r = await fetch(`${base}/nope/x`);
++  assert.equal(r.status, 404);
++  assert.match(r.headers.get('content-type'), /application\/json/);
++  assert.deepEqual(await r.json(), { error: 'Not Found', path: '/nope/x' });
++});
++
++test('unsupported method on known route is JSON 404', async () => {
++  const r = await fetch(`${base}/health`, { method: 'POST' });
++  assert.equal(r.status, 404);
++  assert.equal((await r.json()).error, 'Not Found');
++});

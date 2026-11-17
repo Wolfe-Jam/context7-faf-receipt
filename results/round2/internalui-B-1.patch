@@ -1,0 +1,57 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/internalui/B/src/pages/Settings.tsx <rig>/runs2/internalui-B-1/src/pages/Settings.tsx
+--- <rig>/cases/internalui/B/src/pages/Settings.tsx	2026-11-16 20:20:49
++++ <rig>/runs2/internalui-B-1/src/pages/Settings.tsx	2026-11-16 20:27:16
+@@ -1,10 +1,52 @@
+-import { Button } from '@shop/ui';
++import { useState } from 'react';
++import { Button, Modal } from '@shop/ui';
+ 
++async function deleteAccount(): Promise<void> {
++  const res = await fetch('/api/account', { method: 'DELETE' });
++  if (!res.ok) throw new Error(`Delete failed (${res.status})`);
++}
++
+ export function Settings() {
++  const [confirmOpen, setConfirmOpen] = useState(false);
++  const [busy, setBusy] = useState(false);
++  const [error, setError] = useState<string | null>(null);
++
++  const close = () => {
++    if (busy) return;
++    setConfirmOpen(false);
++    setError(null);
++  };
++
++  const confirmDelete = async () => {
++    setBusy(true);
++    setError(null);
++    try {
++      await deleteAccount();
++      setConfirmOpen(false);
++    } catch (e) {
++      setError(e instanceof Error ? e.message : 'Delete failed');
++    } finally {
++      setBusy(false);
++    }
++  };
++
+   return (
+     <section>
+       <h1>Settings</h1>
+       <Button onClick={() => alert('saved')}>Save</Button>
++      <Button tone="danger" onClick={() => setConfirmOpen(true)}>
++        Delete account
++      </Button>
++      <Modal open={confirmOpen} title="Delete account?" onClose={close}>
++        <p>This will permanently delete the account. This cannot be undone.</p>
++        {error && <p role="alert">{error}</p>}
++        <Button onClick={close} disabled={busy}>
++          Cancel
++        </Button>
++        <Button tone="danger" onClick={confirmDelete} disabled={busy}>
++          {busy ? 'Deleting…' : 'Delete'}
++        </Button>
++      </Modal>
+     </section>
+   );
+ }

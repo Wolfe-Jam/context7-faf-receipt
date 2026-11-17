@@ -1,0 +1,139 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/B/src/app.js <rig>/runs3/express5-B-3/src/app.js
+--- <rig>/cases/express5/B/src/app.js	2026-11-16 20:19:30
++++ <rig>/runs3/express5-B-3/src/app.js	2026-11-16 21:04:13
+@@ -1,8 +1,58 @@
+ import express from 'express';
++import path from 'node:path';
++import { stat } from 'node:fs/promises';
+ 
+-export const app = express();
+-app.use(express.json());
++export function createApp({ root = process.env.FILES_ROOT ?? path.resolve('files') } = {}) {
++  const app = express();
++  const base = path.resolve(root);
++  app.use(express.json());
+ 
+-app.get('/health', (req, res) => {
+-  res.json({ ok: true });
+-});
++  app.get('/health', (req, res) => {
++    res.json({ ok: true });
++  });
++
++  // Express 5: named wildcard; req.params.path is an array of segments.
++  app.get('/files/*path', async (req, res) => {
++    const segments = req.params.path;
++    const rel = segments.join('/');
++    const full = path.resolve(base, rel);
++    if (
++      segments.includes('..') ||
++      segments.some((s) => s.includes('\0')) ||
++      !full.startsWith(base + path.sep)
++    ) {
++      return res.status(400).json({ error: 'Invalid path' });
++    }
++    let s;
++    try {
++      s = await stat(full);
++    } catch (err) {
++      if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
++        return res.status(404).json({ error: 'Not Found' });
++      }
++      throw err; // Express 5 forwards async rejections to the error handler
++    }
++    res.json({
++      path: rel,
++      name: path.basename(full),
++      type: s.isDirectory() ? 'directory' : 'file',
++      size: s.size,
++      modified: s.mtime.toISOString(),
++      created: s.birthtime.toISOString(),
++    });
++  });
++
++  app.use((req, res) => {
++    res.status(404).json({ error: 'Not Found' });
++  });
++
++  app.use((err, req, res, next) => {
++    if (res.headersSent) return next(err);
++    const status = err.status ?? err.statusCode ?? 500;
++    res.status(status).json({ error: status === 500 ? 'Internal Server Error' : err.message });
++  });
++
++  return app;
++}
++
++export const app = createApp();
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/B/test/files.test.js <rig>/runs3/express5-B-3/test/files.test.js
+--- <rig>/cases/express5/B/test/files.test.js	1969-12-31 19:00:00
++++ <rig>/runs3/express5-B-3/test/files.test.js	2026-11-16 21:04:25
+@@ -0,0 +1,68 @@
++import { test, before, after } from 'node:test';
++import assert from 'node:assert/strict';
++import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import http from 'node:http';
++import { createApp } from '../src/app.js';
++
++let dir, server, url;
++
++before(async () => {
++  dir = await mkdtemp(path.join(tmpdir(), 'files-api-'));
++  await mkdir(path.join(dir, 'docs/guide'), { recursive: true });
++  await writeFile(path.join(dir, 'docs/guide/intro.md'), 'hello');
++  await writeFile(path.join(dir, 'top.txt'), 'x');
++  server = createApp({ root: dir }).listen(0);
++  url = `http://127.0.0.1:${server.address().port}`;
++});
++
++after(async () => {
++  server.close();
++  await rm(dir, { recursive: true, force: true });
++});
++
++test('metadata for nested file path', async () => {
++  const r = await fetch(`${url}/files/docs/guide/intro.md`);
++  assert.equal(r.status, 200);
++  const b = await r.json();
++  assert.equal(b.path, 'docs/guide/intro.md');
++  assert.equal(b.name, 'intro.md');
++  assert.equal(b.type, 'file');
++  assert.equal(b.size, 5);
++  assert.ok(!Number.isNaN(Date.parse(b.modified)));
++});
++
++test('metadata for top-level file and directory', async () => {
++  assert.equal((await (await fetch(`${url}/files/top.txt`)).json()).size, 1);
++  assert.equal((await (await fetch(`${url}/files/docs/guide`)).json()).type, 'directory');
++});
++
++test('missing file gives JSON 404', async () => {
++  const r = await fetch(`${url}/files/nope/missing.txt`);
++  assert.equal(r.status, 404);
++  assert.match(r.headers.get('content-type'), /application\/json/);
++  assert.deepEqual(await r.json(), { error: 'Not Found' });
++});
++
++test('path traversal is rejected', async () => {
++  // fetch() normalizes dot segments, so send the raw path via node:http.
++  const status = await new Promise((resolve, reject) => {
++    http
++      .get({ host: '127.0.0.1', port: server.address().port, path: '/files/%2e%2e/%2e%2e/etc/passwd' }, (res) => {
++        res.resume();
++        resolve(res.statusCode);
++      })
++      .on('error', reject);
++  });
++  assert.equal(status, 400);
++});
++
++test('unknown routes give JSON 404', async () => {
++  for (const [method, p] of [['GET', '/nope'], ['POST', '/health'], ['GET', '/files']]) {
++    const r = await fetch(`${url}${p}`, { method });
++    assert.equal(r.status, 404);
++    assert.match(r.headers.get('content-type'), /application\/json/);
++    assert.deepEqual(await r.json(), { error: 'Not Found' });
++  }
++});

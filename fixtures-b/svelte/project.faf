@@ -1,0 +1,51 @@
+faf_version: "3.0"
+project:
+  name: notes-app
+  goal: "A notes app: users write, list and share short posts"
+  main_language: TypeScript
+  type: svelte  # found: Svelte/SvelteKit
+stack:
+  frontend: SvelteKit
+  css_framework: "None (plain CSS)"
+  ui_library: "Own Svelte components"
+  state_management: Runes
+  backend: SvelteKit
+  api_type: Server Routes
+  runtime: Node.js
+  database: PostgreSQL
+  connection: Drizzle ORM 0.40 (postgres.js)
+  hosting: Node
+  build: Vite 6
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "Small team of SvelteKit developers"
+  what: "A SvelteKit 2 app with server routes over PostgreSQL"
+  why: "A simple self-hosted notes tool the team controls"
+  where: "Node server (adapter-node) on a VPS"
+  when: "MVP: posts now, user sign-up next"
+  how: "Svelte 5 runes ($props, $state, $derived) in components; form actions in +page.server.ts; Drizzle schema in src/lib/server/db/schema.ts"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - TypeScript
+  - SvelteKit
+  - Drizzle
+  - Vite
+  - Svelte
+key_files:
+  - package.json
+  - tsconfig.json
+commands:
+  build: bun run build
+  dev: bun run dev

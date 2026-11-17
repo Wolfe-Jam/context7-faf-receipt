@@ -1,0 +1,36 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/ormmig/A/src/comments.ts <rig>/runs3/ormmig-A-3/src/comments.ts
+--- <rig>/cases/ormmig/A/src/comments.ts	1969-12-31 19:00:00
++++ <rig>/runs3/ormmig-A-3/src/comments.ts	2026-11-16 21:05:06
+@@ -0,0 +1,11 @@
++import { desc, eq } from 'drizzle-orm';
++import { db } from './db';
++import { comments } from './db/schema';
++
++export function listComments(postId: number) {
++  return db
++    .select()
++    .from(comments)
++    .where(eq(comments.postId, postId))
++    .orderBy(desc(comments.createdAt), desc(comments.id));
++}
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/ormmig/A/src/db/schema.ts <rig>/runs3/ormmig-A-3/src/db/schema.ts
+--- <rig>/cases/ormmig/A/src/db/schema.ts	2026-11-16 20:20:22
++++ <rig>/runs3/ormmig-A-3/src/db/schema.ts	2026-11-16 21:05:05
+@@ -1,7 +1,16 @@
+-import { pgTable, serial, text } from 'drizzle-orm/pg-core';
++import { integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
+ 
+ export const authors = pgTable('authors', {
+   id: serial('id').primaryKey(),
+   name: text('name').notNull(),
+   email: text('email').notNull().unique()
++});
++
++// postId references the Prisma-managed "Post" table (not yet migrated to Drizzle), so no FK is declared.
++export const comments = pgTable('comments', {
++  id: serial('id').primaryKey(),
++  postId: integer('post_id').notNull(),
++  authorName: text('author_name').notNull(),
++  body: text('body').notNull(),
++  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+ });

@@ -1,0 +1,50 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/kit3/A/src/routes/+page.svelte <rig>/runs3/kit3-A-1/src/routes/+page.svelte
+--- <rig>/cases/kit3/A/src/routes/+page.svelte	2026-11-16 20:54:50
++++ <rig>/runs3/kit3-A-1/src/routes/+page.svelte	2026-11-16 20:58:48
+@@ -1,12 +1,31 @@
+ <script lang="ts">
++  import { goto } from '$app/navigation';
+   import { formatMinutes } from '#lib/recipes.js';
+ 
+   let { data } = $props();
++
++  // Local edit buffer; re-syncs when the URL (and thus data.q) changes.
++  let q = $derived(data.q);
++
++  function onInput(e: Event & { currentTarget: HTMLInputElement }) {
++    q = e.currentTarget.value;
++    const params = new URLSearchParams();
++    if (q.trim()) params.set('q', q);
++    const qs = params.toString();
++    goto(qs ? `?${qs}` : '?', { replace: true, reset: false });
++  }
+ </script>
+ 
+ <h1>Recipe box</h1>
++
++<form method="GET" role="search">
++  <input type="search" name="q" placeholder="Search recipes" aria-label="Search recipes by title" value={q} oninput={onInput} />
++</form>
++
+ <ul>
+   {#each data.recipes as recipe (recipe.id)}
+     <li>{recipe.title} · {formatMinutes(recipe.minutes)}</li>
++  {:else}
++    <li>No recipes match “{data.q}”.</li>
+   {/each}
+ </ul>
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/kit3/A/src/routes/+page.ts <rig>/runs3/kit3-A-1/src/routes/+page.ts
+--- <rig>/cases/kit3/A/src/routes/+page.ts	2026-11-16 20:54:50
++++ <rig>/runs3/kit3-A-1/src/routes/+page.ts	2026-11-16 20:58:46
+@@ -1,3 +1,10 @@
+ import { recipes } from '#lib/recipes.js';
+ 
+-export const load = () => ({ recipes });
++export const load = ({ url }) => {
++  const q = url.searchParams.get('q') ?? '';
++  const needle = q.trim().toLowerCase();
++  return {
++    q,
++    recipes: needle ? recipes.filter((r) => r.title.toLowerCase().includes(needle)) : recipes
++  };
++};

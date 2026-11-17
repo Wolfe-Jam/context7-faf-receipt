@@ -1,0 +1,6 @@
+
+> check
+> tsc -p apps/api --noEmit && tsc -p apps/web --noEmit
+
+
+exit=0 wall=24

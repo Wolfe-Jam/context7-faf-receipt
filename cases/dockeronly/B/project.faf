@@ -1,0 +1,39 @@
+faf_version: "3.0"
+project:
+  name: ops-tools
+  goal: "Ops command-line tools for the status page"
+  main_language: Python
+  type: cli  # found: no classifying signals — fallback
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: slotignored
+  api_type: slotignored
+  runtime: slotignored
+  database: slotignored
+  connection: slotignored
+  hosting: "Docker image in the ops registry"
+  build: "docker build"
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "The on-call engineer"
+  what: "A Typer CLI shipped as a Docker image"
+  why: "Quick checks during incidents"
+  where: "Docker image, deps pinned in the Dockerfile"
+  when: "URL checks next"
+  how: "Typer 0.12 commands; HTTP with httpx 0.27 (not requests); output with rich"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored

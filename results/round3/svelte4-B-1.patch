@@ -1,0 +1,28 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/svelte4/B/src/routes/+page.svelte <rig>/runs3/svelte4-B-1/src/routes/+page.svelte
+--- <rig>/cases/svelte4/B/src/routes/+page.svelte	2026-11-16 20:18:11
++++ <rig>/runs3/svelte4-B-1/src/routes/+page.svelte	2026-11-16 20:57:04
+@@ -1,11 +1,23 @@
+ <script lang="ts">
+   import type { PageData } from './$types';
+   export let data: PageData;
++
++  let query = '';
++  $: needle = query.trim().toLowerCase();
++  $: filtered = data.people.filter((p) => p.name.toLowerCase().includes(needle));
+ </script>
+ 
+ <h1>Team directory</h1>
++<input
++  type="search"
++  placeholder="Search by name"
++  aria-label="Search people by name"
++  bind:value={query}
++/>
+ <ul>
+-  {#each data.people as person (person.id)}
++  {#each filtered as person (person.id)}
+     <li>{person.name} — {person.team}</li>
++  {:else}
++    <li>No people found.</li>
+   {/each}
+ </ul>

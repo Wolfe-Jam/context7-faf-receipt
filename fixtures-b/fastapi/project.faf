@@ -1,0 +1,45 @@
+faf_version: "3.0"
+project:
+  name: inventory-api
+  goal: "Inventory API for a small shop: create, list and price stock items"
+  main_language: Python
+  type: backend  # found: no classifying signals — fallback
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: FastAPI
+  api_type: REST
+  runtime: Python 3.12 (uvicorn)
+  database: PostgreSQL (SQLite in tests)
+  connection: SQLModel 0.0.24 (Pydantic v2, SQLAlchemy 2)
+  hosting: "Docker on Render"
+  build: "uv"
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "One Python developer and the shop's front-end contractor"
+  what: "A JSON API over an items table, migrated with Alembic"
+  why: "Replace a spreadsheet the shop updates by hand"
+  where: "Docker on Render, managed PostgreSQL"
+  when: "MVP this month: items CRUD, then orders"
+  how: "FastAPI with SQLModel table models and Annotated Depends sessions; Pydantic v2 APIs (model_validate, model_dump)"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - Python
+key_files:
+  - pyproject.toml
+commands:
+  test: pytest

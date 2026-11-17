@@ -1,0 +1,72 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures/fastapi/app/main.py <rig>/runs/fastapi-A-1/app/main.py
+--- <rig>/fixtures/fastapi/app/main.py	2026-11-16 19:02:25
++++ <rig>/runs/fastapi-A-1/app/main.py	2026-11-16 19:17:14
+@@ -1,8 +1,8 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
+-from sqlmodel import Session
++from fastapi import Depends, FastAPI, Query
++from sqlmodel import Session, select
+ 
+ from app.db import get_session, init_db
+ from app.models import Item, ItemCreate, ItemRead
+@@ -16,6 +16,15 @@
+ 
+ app = FastAPI(lifespan=lifespan)
+ SessionDep = Annotated[Session, Depends(get_session)]
++
++
++@app.get("/items", response_model=list[ItemRead])
++def list_items(
++    session: SessionDep,
++    offset: Annotated[int, Query(ge=0)] = 0,
++    limit: Annotated[int, Query(ge=1, le=100)] = 100,
++) -> list[Item]:
++    return list(session.exec(select(Item).order_by(Item.id).offset(offset).limit(limit)).all())
+ 
+ 
+ @app.post("/items", response_model=ItemRead)
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures/fastapi/tests/test_items.py <rig>/runs/fastapi-A-1/tests/test_items.py
+--- <rig>/fixtures/fastapi/tests/test_items.py	2026-11-16 19:02:25
++++ <rig>/runs/fastapi-A-1/tests/test_items.py	2026-11-16 19:17:21
+@@ -8,3 +8,38 @@
+         r = client.post("/items", json={"name": "pen", "price_cents": 150})
+         assert r.status_code == 200
+         assert r.json()["name"] == "pen"
++
++
++def test_list_items_pagination():
++    from sqlalchemy.pool import StaticPool
++    from sqlmodel import Session, SQLModel, create_engine
++
++    from app.db import get_session
++
++    engine = create_engine(
++        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
++    )
++    SQLModel.metadata.create_all(engine)
++
++    def override():
++        with Session(engine) as session:
++            yield session
++
++    app.dependency_overrides[get_session] = override
++    try:
++        with TestClient(app) as client:
++            for i in range(5):
++                client.post("/items", json={"name": f"item{i}", "price_cents": i})
++
++            r = client.get("/items", params={"offset": 1, "limit": 2})
++            assert r.status_code == 200
++            assert [i["name"] for i in r.json()] == ["item1", "item2"]
++
++            assert len(client.get("/items").json()) == 5
++            assert client.get("/items", params={"offset": 10}).json() == []
++            assert client.get("/items", params={"limit": 100}).status_code == 200
++            assert client.get("/items", params={"limit": 101}).status_code == 422
++            assert client.get("/items", params={"limit": 0}).status_code == 422
++            assert client.get("/items", params={"offset": -1}).status_code == 422
++    finally:
++        app.dependency_overrides.clear()

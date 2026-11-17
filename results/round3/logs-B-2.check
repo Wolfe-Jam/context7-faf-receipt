@@ -1,0 +1,16 @@
+
+> files-api@0.1.0 test
+> node --test
+
+{"level":30,"time":1794880967604,"pid":81873,"hostname":"WolfeJAMs-iMac.lan","req":{"id":1,"method":"GET","url":"/health","query":{},"params":{},"headers":{"host":"127.0.0.1:61430","connection":"keep-alive","accept":"*/*","accept-language":"*","sec-fetch-mode":"cors","user-agent":"node","accept-encoding":"gzip, deflate"},"remoteAddress":"::ffff:127.0.0.1","remotePort":61431},"res":{"statusCode":200,"headers":{"x-powered-by":"Express","content-type":"application/json; charset=utf-8","content-length":"11","etag":"W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\""}},"responseTime":6,"msg":"request completed"}
+✔ GET /health (66.880285ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 334.14108
+
+exit=0 wall=41

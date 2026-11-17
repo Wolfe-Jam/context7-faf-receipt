@@ -1,0 +1,46 @@
+faf_version: "3.0"
+project:
+  name: shop-admin
+  goal: "Admin console for the shop"
+  main_language: TypeScript
+  type: frontend  # found: frontend framework
+stack:
+  frontend: React
+  css_framework: "Plain CSS (shop- classes)"
+  ui_library: "@shop/ui (our own, src/ui)"
+  state_management: "React state and context"
+  backend: slotignored
+  api_type: slotignored
+  runtime: slotignored
+  database: None (API client)
+  connection: fetch to the shop API
+  hosting: "Netlify"
+  build: TypeScript (tsc)
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "Front-end team"
+  what: "React 18 admin app"
+  why: "Staff manage orders and accounts"
+  where: "Netlify"
+  when: "Account management this sprint"
+  how: "UI only from @shop/ui (Button, Modal); no third-party component libraries"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - TypeScript
+  - React
+  - react-dom
+key_files:
+  - package.json
+  - tsconfig.json

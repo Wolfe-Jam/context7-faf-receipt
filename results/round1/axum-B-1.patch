@@ -1,0 +1,51 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/axum/src/main.rs <rig>/runs/axum-B-1/src/main.rs
+--- <rig>/fixtures-b/axum/src/main.rs	2026-11-16 18:59:28
++++ <rig>/runs/axum-B-1/src/main.rs	2026-11-16 19:22:31
+@@ -1,5 +1,12 @@
+-use axum::{extract::State, routing::get, Router};
++use axum::{
++    extract::{Path, State},
++    http::StatusCode,
++    routing::get,
++    Json, Router,
++};
++use serde::Serialize;
+ use sqlx::postgres::{PgPool, PgPoolOptions};
++use sqlx::FromRow;
+ 
+ #[derive(Clone)]
+ struct AppState {
+@@ -13,12 +20,33 @@
+     }
+ }
+ 
++#[derive(Serialize, FromRow)]
++struct User {
++    id: i64,
++    email: String,
++    name: String,
++}
++
++async fn get_user(
++    State(state): State<AppState>,
++    Path(id): Path<i64>,
++) -> Result<Json<User>, StatusCode> {
++    // Runtime-checked query (no DATABASE_URL needed at build time).
++    let user = sqlx::query_as::<_, User>("SELECT id, email, name FROM users WHERE id = $1")
++        .bind(id)
++        .fetch_optional(&state.pool)
++        .await
++        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
++    user.map(Json).ok_or(StatusCode::NOT_FOUND)
++}
++
+ #[tokio::main]
+ async fn main() {
+     let url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://localhost/users".into());
+     let pool = PgPoolOptions::new().connect_lazy(&url).expect("bad DATABASE_URL");
+     let app = Router::new()
+         .route("/health", get(health))
++        .route("/users/{id}", get(get_user))
+         .with_state(AppState { pool });
+ 
+     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

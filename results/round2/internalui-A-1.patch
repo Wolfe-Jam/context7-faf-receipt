@@ -1,0 +1,29 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/internalui/A/src/pages/Settings.tsx <rig>/runs2/internalui-A-1/src/pages/Settings.tsx
+--- <rig>/cases/internalui/A/src/pages/Settings.tsx	2026-11-16 20:20:49
++++ <rig>/runs2/internalui-A-1/src/pages/Settings.tsx	2026-11-16 20:27:03
+@@ -1,10 +1,24 @@
+-import { Button } from '@shop/ui';
++import { useState } from 'react';
++import { Button, Modal } from '@shop/ui';
+ 
+ export function Settings() {
++  const [confirmOpen, setConfirmOpen] = useState(false);
++
++  const deleteAccount = () => {
++    // TODO: wire to the real account-deletion API once available.
++    setConfirmOpen(false);
++  };
++
+   return (
+     <section>
+       <h1>Settings</h1>
+       <Button onClick={() => alert('saved')}>Save</Button>
++      <Button tone="danger" onClick={() => setConfirmOpen(true)}>Delete account</Button>
++      <Modal open={confirmOpen} title="Delete account?" onClose={() => setConfirmOpen(false)}>
++        <p>This will permanently delete your account. This action cannot be undone.</p>
++        <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
++        <Button tone="danger" onClick={deleteAccount}>Delete</Button>
++      </Modal>
+     </section>
+   );
+ }

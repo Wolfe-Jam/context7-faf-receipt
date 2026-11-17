@@ -1,0 +1,1 @@
+Add an endpoint that lists items with pagination (offset and limit, limit at most 100). Add a test for it and make sure `uv run pytest` passes. use context7

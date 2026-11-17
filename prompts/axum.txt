@@ -1,0 +1,1 @@
+Add an endpoint that returns one user by id as JSON, or 404 if there is no such user. `cargo build` must pass without a running database. use context7

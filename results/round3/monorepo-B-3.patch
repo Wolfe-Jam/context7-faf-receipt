@@ -1,0 +1,14 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/monorepo/B/apps/api/src/index.ts <rig>/runs3/monorepo-B-3/apps/api/src/index.ts
+--- <rig>/cases/monorepo/B/apps/api/src/index.ts	2026-11-16 20:20:44
++++ <rig>/runs3/monorepo-B-3/apps/api/src/index.ts	2026-11-16 21:04:28
+@@ -1,7 +1,10 @@
+ import { Hono } from 'hono';
++import { SUPPORTED_CURRENCIES } from '@acme/shared';
+ 
+ const app = new Hono();
+ 
+ app.get('/health', (c) => c.json({ ok: true }));
++
++app.get('/currencies', (c) => c.json({ currencies: SUPPORTED_CURRENCIES }));
+ 
+ export default app;

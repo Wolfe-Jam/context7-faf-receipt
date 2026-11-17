@@ -1,0 +1,47 @@
+faf_version: "3.0"
+project:
+  name: people
+  goal: "People directory API"
+  main_language: Go
+  type: backend  # found: go.mod + main.go package main (Go CLI)
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: Go net/http (standard library)
+  api_type: REST
+  runtime: Go 1.23
+  database: None (in-memory store)
+  connection: In-memory map behind sync.RWMutex
+  hosting: "Docker"
+  build: go build
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "Go developers"
+  what: "A JSON API on the standard library"
+  why: "No dependencies to audit"
+  where: "Docker"
+  when: "Read endpoints now"
+  how: "Standard library only, no router packages; Go 1.22+ ServeMux patterns (\"GET /users/{id}\") with r.PathValue"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - Go
+key_files:
+  - go.mod
+  - main.go
+commands:
+  build: go build ./...
+  test: go test ./...

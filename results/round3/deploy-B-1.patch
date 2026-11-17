@@ -1,0 +1,37 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/deploy/B/.dockerignore <rig>/runs3/deploy-B-1/.dockerignore
+--- <rig>/cases/deploy/B/.dockerignore	1969-12-31 19:00:00
++++ <rig>/runs3/deploy-B-1/.dockerignore	2026-11-16 20:59:38
+@@ -0,0 +1,10 @@
++.venv
++.git
++.pytest_cache
++__pycache__
++*.pyc
++*.db
++tests
++.faf-dna
++project.faf
++CLAUDE.md
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/deploy/B/Dockerfile <rig>/runs3/deploy-B-1/Dockerfile
+--- <rig>/cases/deploy/B/Dockerfile	1969-12-31 19:00:00
++++ <rig>/runs3/deploy-B-1/Dockerfile	2026-11-16 20:59:37
+@@ -0,0 +1,19 @@
++FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim AS builder
++ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_NO_DEV=1 UV_PYTHON_DOWNLOADS=0
++WORKDIR /app
++RUN --mount=type=cache,target=/root/.cache/uv \
++    --mount=type=bind,source=uv.lock,target=uv.lock \
++    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
++    uv sync --locked --no-install-project
++COPY . /app
++RUN --mount=type=cache,target=/root/.cache/uv \
++    uv sync --locked
++
++FROM python:3.12-slim-trixie
++RUN useradd --system --no-create-home app
++WORKDIR /app
++COPY --from=builder --chown=app:app /app /app
++ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
++USER app
++# Cloud Run injects $PORT (default 8080)
++CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

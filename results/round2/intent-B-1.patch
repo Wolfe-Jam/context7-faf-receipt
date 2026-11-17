@@ -1,0 +1,178 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/app/main.py <rig>/runs2/intent-B-1/app/main.py
+--- <rig>/cases/intent/B/app/main.py	2026-11-16 19:02:25
++++ <rig>/runs2/intent-B-1/app/main.py	2026-11-16 20:28:01
+@@ -1,11 +1,20 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
++from fastapi import Depends, FastAPI, HTTPException
+ from sqlmodel import Session
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemRead,
++    Order,
++    OrderCreate,
++    OrderLine,
++    OrderLineRead,
++    OrderRead,
++)
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +34,37 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def _order_read(order: Order) -> OrderRead:
++    lines = [OrderLineRead.model_validate(line, from_attributes=True) for line in order.lines]
++    return OrderRead(
++        id=order.id,
++        customer_email=order.customer_email,
++        lines=lines,
++        total_cents=sum(ln.unit_price_cents * ln.quantity for ln in lines),
++    )
++
++
++@app.post("/orders", response_model=OrderRead, status_code=201)
++def create_order(order: OrderCreate, session: SessionDep) -> OrderRead:
++    db_order = Order(customer_email=order.customer_email)
++    for line in order.lines:
++        item = session.get(Item, line.item_id)
++        if item is None:
++            raise HTTPException(status_code=422, detail=f"Item {line.item_id} not found")
++        db_order.lines.append(
++            OrderLine(item_id=item.id, quantity=line.quantity, unit_price_cents=item.price_cents)
++        )
++    session.add(db_order)
++    session.commit()
++    session.refresh(db_order)
++    return _order_read(db_order)
++
++
++@app.get("/orders/{order_id}", response_model=OrderRead)
++def read_order(order_id: int, session: SessionDep) -> OrderRead:
++    order = session.get(Order, order_id)
++    if order is None:
++        raise HTTPException(status_code=404, detail="Order not found")
++    return _order_read(order)
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/app/models.py <rig>/runs2/intent-B-1/app/models.py
+--- <rig>/cases/intent/B/app/models.py	2026-11-16 19:02:25
++++ <rig>/runs2/intent-B-1/app/models.py	2026-11-16 20:28:22
+@@ -1,4 +1,5 @@
+-from sqlmodel import Field, SQLModel
++from pydantic import Field as PField
++from sqlmodel import Field, Relationship, SQLModel
+ 
+ 
+ class ItemBase(SQLModel):
+@@ -16,3 +17,42 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++    lines: list["OrderLine"] = Relationship(back_populates="order")
++
++
++class OrderLine(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int | None = Field(default=None, foreign_key="order.id", index=True)
++    item_id: int = Field(foreign_key="item.id")
++    quantity: int
++    # Price snapshot at order time, so later item price changes don't alter totals.
++    unit_price_cents: int
++    order: Order | None = Relationship(back_populates="lines")
++
++
++class OrderLineCreate(SQLModel):
++    item_id: int
++    quantity: int = PField(gt=0)
++
++
++class OrderCreate(SQLModel):
++    customer_email: str = PField(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
++    lines: list[OrderLineCreate] = PField(min_length=1)
++
++
++class OrderLineRead(SQLModel):
++    item_id: int
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    lines: list[OrderLineRead]
++    total_cents: int
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/tests/conftest.py <rig>/runs2/intent-B-1/tests/conftest.py
+--- <rig>/cases/intent/B/tests/conftest.py	1969-12-31 19:00:00
++++ <rig>/runs2/intent-B-1/tests/conftest.py	2026-11-16 20:28:02
+@@ -0,0 +1,5 @@
++import os
++import tempfile
++
++# Must be set before app.db is imported.
++os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mkdtemp()}/test.db"
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/tests/test_orders.py <rig>/runs2/intent-B-1/tests/test_orders.py
+--- <rig>/cases/intent/B/tests/test_orders.py	1969-12-31 19:00:00
++++ <rig>/runs2/intent-B-1/tests/test_orders.py	2026-11-16 20:28:05
+@@ -0,0 +1,48 @@
++from fastapi.testclient import TestClient
++
++from app.main import app
++
++
++def _item(client, name, price):
++    return client.post("/items", json={"name": name, "price_cents": price}).json()["id"]
++
++
++def _order(client, email, lines):
++    return client.post("/orders", json={"customer_email": email, "lines": lines})
++
++
++def test_create_and_read_order_total():
++    with TestClient(app) as client:
++        pen, pad = _item(client, "pen", 150), _item(client, "pad", 400)
++        r = _order(
++            client,
++            "a@example.com",
++            [{"item_id": pen, "quantity": 3}, {"item_id": pad, "quantity": 1}],
++        )
++        assert r.status_code == 201
++        body = r.json()
++        assert body["total_cents"] == 3 * 150 + 400
++        assert len(body["lines"]) == 2
++        got = client.get(f"/orders/{body['id']}")
++        assert got.status_code == 200
++        assert got.json() == body
++
++
++def test_order_unknown_item():
++    with TestClient(app) as client:
++        r = _order(client, "a@example.com", [{"item_id": 99999, "quantity": 1}])
++        assert r.status_code == 422
++
++
++def test_order_validation():
++    with TestClient(app) as client:
++        item = _item(client, "pen", 150)
++        ok_line = {"item_id": item, "quantity": 1}
++        assert _order(client, "a@example.com", []).status_code == 422
++        assert _order(client, "nope", [ok_line]).status_code == 422
++        assert _order(client, "a@example.com", [{"item_id": item, "quantity": 0}]).status_code == 422
++
++
++def test_order_not_found():
++    with TestClient(app) as client:
++        assert client.get("/orders/99999").status_code == 404

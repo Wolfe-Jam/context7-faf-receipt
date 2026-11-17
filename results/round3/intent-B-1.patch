@@ -1,0 +1,248 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/app/main.py <rig>/runs3/intent-B-1/app/main.py
+--- <rig>/cases/intent/B/app/main.py	2026-11-16 19:02:25
++++ <rig>/runs3/intent-B-1/app/main.py	2026-11-16 20:57:23
+@@ -1,11 +1,20 @@
+ from contextlib import asynccontextmanager
+ from typing import Annotated
+ 
+-from fastapi import Depends, FastAPI
+-from sqlmodel import Session
++from fastapi import Depends, FastAPI, HTTPException
++from sqlmodel import Session, col, select
+ 
+ from app.db import get_session, init_db
+-from app.models import Item, ItemCreate, ItemRead
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemRead,
++    Order,
++    OrderCreate,
++    OrderLine,
++    OrderLineRead,
++    OrderRead,
++)
+ 
+ 
+ @asynccontextmanager
+@@ -25,3 +34,51 @@
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def to_order_read(order: Order) -> OrderRead:
++    lines = [
++        OrderLineRead(
++            item_id=l.item_id, quantity=l.quantity, unit_price_cents=l.unit_price_cents
++        )
++        for l in order.lines
++    ]
++    return OrderRead(
++        id=order.id,
++        customer_email=order.customer_email,
++        lines=lines,
++        total_cents=sum(l.quantity * l.unit_price_cents for l in lines),
++    )
++
++
++@app.post("/orders", response_model=OrderRead)
++def create_order(order: OrderCreate, session: SessionDep) -> OrderRead:
++    item_ids = {l.item_id for l in order.lines}
++    items = {i.id: i for i in session.exec(select(Item).where(col(Item.id).in_(item_ids)))}
++    missing = sorted(item_ids - items.keys())
++    if missing:
++        raise HTTPException(status_code=422, detail=f"Unknown item ids: {missing}")
++
++    db_order = Order(
++        customer_email=order.customer_email,
++        lines=[
++            OrderLine(
++                item_id=l.item_id,
++                quantity=l.quantity,
++                unit_price_cents=items[l.item_id].price_cents,
++            )
++            for l in order.lines
++        ],
++    )
++    session.add(db_order)
++    session.commit()
++    session.refresh(db_order)
++    return to_order_read(db_order)
++
++
++@app.get("/orders/{order_id}", response_model=OrderRead)
++def read_order(order_id: int, session: SessionDep) -> OrderRead:
++    db_order = session.get(Order, order_id)
++    if db_order is None:
++        raise HTTPException(status_code=404, detail="Order not found")
++    return to_order_read(db_order)
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/app/models.py <rig>/runs3/intent-B-1/app/models.py
+--- <rig>/cases/intent/B/app/models.py	2026-11-16 19:02:25
++++ <rig>/runs3/intent-B-1/app/models.py	2026-11-16 20:57:46
+@@ -1,6 +1,9 @@
+-from sqlmodel import Field, SQLModel
++from typing import Annotated
+ 
++from pydantic import StringConstraints
++from sqlmodel import Field, Relationship, SQLModel
+ 
++
+ class ItemBase(SQLModel):
+     name: str
+     price_cents: int
+@@ -16,3 +19,47 @@
+ 
+ class ItemRead(ItemBase):
+     id: int
++
++
++EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
++
++
++class Order(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    customer_email: str
++
++    lines: list["OrderLine"] = Relationship(back_populates="order")
++
++
++class OrderLine(SQLModel, table=True):
++    id: int | None = Field(default=None, primary_key=True)
++    order_id: int = Field(foreign_key="order.id", index=True)
++    item_id: int = Field(foreign_key="item.id")
++    quantity: int
++    # Price captured at order time so totals don't change if the item is repriced.
++    unit_price_cents: int
++
++    order: Order | None = Relationship(back_populates="lines")
++
++
++class OrderLineCreate(SQLModel):
++    item_id: int
++    quantity: int = Field(gt=0)
++
++
++class OrderCreate(SQLModel):
++    customer_email: Annotated[str, StringConstraints(pattern=EMAIL_PATTERN)]
++    lines: list[OrderLineCreate] = Field(min_length=1)
++
++
++class OrderLineRead(SQLModel):
++    item_id: int
++    quantity: int
++    unit_price_cents: int
++
++
++class OrderRead(SQLModel):
++    id: int
++    customer_email: str
++    lines: list[OrderLineRead]
++    total_cents: int
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/intent/B/tests/test_orders.py <rig>/runs3/intent-B-1/tests/test_orders.py
+--- <rig>/cases/intent/B/tests/test_orders.py	1969-12-31 19:00:00
++++ <rig>/runs3/intent-B-1/tests/test_orders.py	2026-11-16 20:57:29
+@@ -0,0 +1,103 @@
++import pytest
++from fastapi.testclient import TestClient
++from sqlmodel import Session, SQLModel, create_engine
++from sqlmodel.pool import StaticPool
++
++from app.db import get_session
++from app.main import app
++from app.models import Item
++
++
++@pytest.fixture(name="session")
++def session_fixture():
++    engine = create_engine(
++        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
++    )
++    SQLModel.metadata.create_all(engine)
++    with Session(engine) as session:
++        yield session
++
++
++@pytest.fixture(name="client")
++def client_fixture(session: Session):
++    app.dependency_overrides[get_session] = lambda: session
++    yield TestClient(app)
++    app.dependency_overrides.clear()
++
++
++@pytest.fixture(name="items")
++def items_fixture(session: Session):
++    pen = Item(name="pen", price_cents=150)
++    pad = Item(name="pad", price_cents=399)
++    session.add(pen)
++    session.add(pad)
++    session.commit()
++    return pen, pad
++
++
++def test_create_order_computes_total(client: TestClient, items):
++    pen, pad = items
++    r = client.post(
++        "/orders",
++        json={
++            "customer_email": "a@example.com",
++            "lines": [
++                {"item_id": pen.id, "quantity": 3},
++                {"item_id": pad.id, "quantity": 2},
++            ],
++        },
++    )
++    assert r.status_code == 200
++    data = r.json()
++    assert data["customer_email"] == "a@example.com"
++    assert data["total_cents"] == 3 * 150 + 2 * 399
++    assert len(data["lines"]) == 2
++
++
++def test_read_order(client: TestClient, items):
++    pen, _ = items
++    created = client.post(
++        "/orders",
++        json={"customer_email": "a@example.com", "lines": [{"item_id": pen.id, "quantity": 1}]},
++    ).json()
++    r = client.get(f"/orders/{created['id']}")
++    assert r.status_code == 200
++    assert r.json() == created
++
++
++def test_read_missing_order(client: TestClient):
++    assert client.get("/orders/999").status_code == 404
++
++
++def test_total_is_stable_after_reprice(client: TestClient, session: Session, items):
++    pen, _ = items
++    created = client.post(
++        "/orders",
++        json={"customer_email": "a@example.com", "lines": [{"item_id": pen.id, "quantity": 2}]},
++    ).json()
++    pen.price_cents = 999
++    session.add(pen)
++    session.commit()
++    assert client.get(f"/orders/{created['id']}").json()["total_cents"] == 300
++
++
++def test_unknown_item_rejected(client: TestClient, items):
++    r = client.post(
++        "/orders",
++        json={"customer_email": "a@example.com", "lines": [{"item_id": 12345, "quantity": 1}]},
++    )
++    assert r.status_code == 422
++
++
++@pytest.mark.parametrize(
++    "payload",
++    [
++        {"customer_email": "not-an-email", "lines": [{"item_id": 1, "quantity": 1}]},
++        {"customer_email": "a@example.com", "lines": []},
++        {"customer_email": "a@example.com", "lines": [{"item_id": 1, "quantity": 0}]},
++        {"customer_email": "a@example.com", "lines": [{"item_id": 1, "quantity": -2}]},
++        {"lines": [{"item_id": 1, "quantity": 1}]},
++    ],
++)
++def test_invalid_payloads(client: TestClient, items, payload):
++    assert client.post("/orders", json=payload).status_code == 422

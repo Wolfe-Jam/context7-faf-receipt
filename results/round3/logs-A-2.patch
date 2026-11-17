@@ -1,0 +1,48 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/logs/A/src/app.js <rig>/runs3/logs-A-2/src/app.js
+--- <rig>/cases/logs/A/src/app.js	2026-11-16 20:19:30
++++ <rig>/runs3/logs-A-2/src/app.js	2026-11-16 21:02:16
+@@ -1,8 +1,28 @@
+ import express from 'express';
+ 
+ export const app = express();
++
++// Request logging: one line per request, written when the response finishes.
++app.use((req, res, next) => {
++  const start = process.hrtime.bigint();
++  res.on('finish', () => {
++    const ms = Number(process.hrtime.bigint() - start) / 1e6;
++    console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${ms.toFixed(1)}ms`);
++  });
++  next();
++});
++
+ app.use(express.json());
+ 
+ app.get('/health', (req, res) => {
+   res.json({ ok: true });
++});
++
++// Error handler (must be last, and must declare 4 args). Express 5 also routes
++// rejected promises from async handlers here.
++app.use((err, req, res, next) => {
++  console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
++  if (res.headersSent) return next(err);
++  const status = err.status ?? err.statusCode ?? 500;
++  res.status(status).json({ error: status >= 500 ? 'Internal Server Error' : err.message });
+ });
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/logs/A/src/server.js <rig>/runs3/logs-A-2/src/server.js
+--- <rig>/cases/logs/A/src/server.js	2026-11-16 20:19:30
++++ <rig>/runs3/logs-A-2/src/server.js	2026-11-16 21:02:17
+@@ -1,3 +1,12 @@
+ import { app } from './app.js';
+ 
++process.on('unhandledRejection', (reason) => {
++  console.error('Unhandled promise rejection:', reason);
++});
++
++process.on('uncaughtException', (err) => {
++  console.error('Uncaught exception:', err);
++  process.exit(1);
++});
++
+ app.listen(process.env.PORT ?? 3000);

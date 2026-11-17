@@ -1,0 +1,78 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/svelte/src/lib/server/db/schema.ts <rig>/runs/svelte-B-1/src/lib/server/db/schema.ts
+--- <rig>/fixtures-b/svelte/src/lib/server/db/schema.ts	2026-11-16 18:59:05
++++ <rig>/runs/svelte-B-1/src/lib/server/db/schema.ts	2026-11-16 19:19:23
+@@ -6,3 +6,10 @@
+   body: text('body').notNull(),
+   createdAt: timestamp('created_at').defaultNow().notNull()
+ });
++
++export const users = pgTable('users', {
++  id: serial('id').primaryKey(),
++  email: text('email').notNull().unique(),
++  name: text('name').notNull(),
++  createdAt: timestamp('created_at').defaultNow().notNull()
++});
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/svelte/src/routes/+page.svelte <rig>/runs/svelte-B-1/src/routes/+page.svelte
+--- <rig>/fixtures-b/svelte/src/routes/+page.svelte	2026-11-16 18:59:05
++++ <rig>/runs/svelte-B-1/src/routes/+page.svelte	2026-11-16 19:19:20
+@@ -1,2 +1,3 @@
+ <h1>Notes</h1>
+ <a href="/posts">Posts</a>
++<a href="/signup">Sign up</a>
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/svelte/src/routes/signup/+page.server.ts <rig>/runs/svelte-B-1/src/routes/signup/+page.server.ts
+--- <rig>/fixtures-b/svelte/src/routes/signup/+page.server.ts	1969-12-31 19:00:00
++++ <rig>/runs/svelte-B-1/src/routes/signup/+page.server.ts	2026-11-16 19:19:18
+@@ -0,0 +1,29 @@
++import { db } from '$lib/server/db';
++import { users } from '$lib/server/db/schema';
++import { fail, redirect } from '@sveltejs/kit';
++import type { Actions } from './$types';
++
++export const actions: Actions = {
++  default: async ({ request }) => {
++    const data = await request.formData();
++    const email = String(data.get('email') ?? '').trim().toLowerCase();
++    const name = String(data.get('name') ?? '').trim();
++
++    if (!name) return fail(400, { email, name, error: 'Name is required' });
++    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
++      return fail(400, { email, name, error: 'Enter a valid email address' });
++    }
++
++    const inserted = await db
++      .insert(users)
++      .values({ email, name })
++      .onConflictDoNothing({ target: users.email })
++      .returning({ id: users.id });
++
++    if (inserted.length === 0) {
++      return fail(409, { email, name, error: 'That email is already registered' });
++    }
++
++    redirect(303, '/');
++  }
++};
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/fixtures-b/svelte/src/routes/signup/+page.svelte <rig>/runs/svelte-B-1/src/routes/signup/+page.svelte
+--- <rig>/fixtures-b/svelte/src/routes/signup/+page.svelte	1969-12-31 19:00:00
++++ <rig>/runs/svelte-B-1/src/routes/signup/+page.svelte	2026-11-16 19:19:20
+@@ -0,0 +1,20 @@
++<script lang="ts">
++  import { enhance } from '$app/forms';
++  import type { PageProps } from './$types';
++
++  let { form }: PageProps = $props();
++</script>
++
++<h1>Sign up</h1>
++<form method="POST" use:enhance>
++  <label>
++    Email
++    <input type="email" name="email" value={form?.email ?? ''} required />
++  </label>
++  <label>
++    Name
++    <input type="text" name="name" value={form?.name ?? ''} required />
++  </label>
++  {#if form?.error}<p role="alert">{form.error}</p>{/if}
++  <button type="submit">Sign up</button>
++</form>

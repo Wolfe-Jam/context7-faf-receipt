@@ -1,0 +1,200 @@
+{
+  "birthCertificate": {
+    "born": "2026-11-17T01:23:05.146Z",
+    "birthDNA": 25,
+    "birthDNASource": "init",
+    "projectDNA": "97e2ccb622496f61",
+    "certificate": "FAF-2026-BXXX-MFF5"
+  },
+  "versions": [
+    {
+      "version": "v1.0.0",
+      "timestamp": "2026-11-17T01:23:05.146Z",
+      "score": 25,
+      "changes": [
+        "Birth — initial context"
+      ],
+      "growth": 0
+    },
+    {
+      "version": "v1.0.1",
+      "timestamp": "2026-11-17T01:23:05.550Z",
+      "score": 31,
+      "changes": [
+        "faf edit project.goal"
+      ],
+      "growth": 6
+    },
+    {
+      "version": "v1.0.2",
+      "timestamp": "2026-11-17T01:23:05.728Z",
+      "score": 38,
+      "changes": [
+        "faf edit stack.css_framework"
+      ],
+      "growth": 13
+    },
+    {
+      "version": "v1.0.3",
+      "timestamp": "2026-11-17T01:23:05.932Z",
+      "score": 44,
+      "changes": [
+        "faf edit stack.ui_library"
+      ],
+      "growth": 19
+    },
+    {
+      "version": "v1.0.4",
+      "timestamp": "2026-11-17T01:23:06.115Z",
+      "score": 47,
+      "changes": [
+        "faf edit stack.database"
+      ],
+      "growth": 22
+    },
+    {
+      "version": "v1.0.5",
+      "timestamp": "2026-11-17T01:23:06.297Z",
+      "score": 44,
+      "changes": [
+        "faf edit stack.connection"
+      ],
+      "growth": 19
+    },
+    {
+      "version": "v1.0.6",
+      "timestamp": "2026-11-17T01:23:06.489Z",
+      "score": 50,
+      "changes": [
+        "faf edit stack.hosting"
+      ],
+      "growth": 25
+    },
+    {
+      "version": "v1.0.7",
+      "timestamp": "2026-11-17T01:23:06.660Z",
+      "score": 56,
+      "changes": [
+        "faf edit stack.cicd"
+      ],
+      "growth": 31
+    },
+    {
+      "version": "v1.0.8",
+      "timestamp": "2026-11-17T01:23:06.863Z",
+      "score": 61,
+      "changes": [
+        "faf edit human_context.who"
+      ],
+      "growth": 36
+    },
+    {
+      "version": "v1.0.9",
+      "timestamp": "2026-11-17T01:23:07.099Z",
+      "score": 67,
+      "changes": [
+        "faf edit human_context.what"
+      ],
+      "growth": 42
+    },
+    {
+      "version": "v1.0.10",
+      "timestamp": "2026-11-17T01:23:07.315Z",
+      "score": 72,
+      "changes": [
+        "faf edit human_context.why"
+      ],
+      "growth": 47
+    },
+    {
+      "version": "v1.0.11",
+      "timestamp": "2026-11-17T01:23:07.491Z",
+      "score": 78,
+      "changes": [
+        "faf edit human_context.where"
+      ],
+      "growth": 53
+    },
+    {
+      "version": "v1.0.12",
+      "timestamp": "2026-11-17T01:23:07.662Z",
+      "score": 83,
+      "changes": [
+        "faf edit human_context.when"
+      ],
+      "growth": 58
+    },
+    {
+      "version": "v1.0.13",
+      "timestamp": "2026-11-17T01:23:07.840Z",
+      "score": 89,
+      "changes": [
+        "faf edit human_context.how"
+      ],
+      "growth": 64
+    },
+    {
+      "version": "v1.0.14",
+      "timestamp": "2026-11-17T01:23:41.247Z",
+      "score": 94,
+      "changes": [
+        "faf edit stack.state_management"
+      ],
+      "growth": 69
+    },
+    {
+      "version": "v1.0.15",
+      "timestamp": "2026-11-17T01:23:41.418Z",
+      "score": 100,
+      "changes": [
+        "faf edit stack.connection"
+      ],
+      "growth": 75
+    }
+  ],
+  "current": {
+    "version": "v1.0.15",
+    "score": 100,
+    "lastSync": "2026-11-17T01:23:41.418Z"
+  },
+  "growth": {
+    "totalGrowth": 75,
+    "daysActive": 0,
+    "milestones": [
+      {
+        "type": "birth",
+        "score": 25,
+        "date": "2026-11-17T01:23:05.146Z",
+        "version": "v1.0.0",
+        "label": "Birth",
+        "emoji": "🐣"
+      },
+      {
+        "type": "doubled",
+        "score": 50,
+        "date": "2026-11-17T01:23:06.489Z",
+        "version": "v1.0.6",
+        "label": "Doubled",
+        "emoji": "2️⃣"
+      },
+      {
+        "type": "peak",
+        "score": 100,
+        "date": "2026-11-17T01:23:41.418Z",
+        "version": "v1.0.15",
+        "label": "Peak",
+        "emoji": "🏔️"
+      },
+      {
+        "type": "current",
+        "score": 100,
+        "date": "2026-11-17T01:23:41.418Z",
+        "version": "v1.0.15",
+        "label": "Current",
+        "emoji": "📍"
+      }
+    ]
+  },
+  "lastModified": "2026-11-17T01:23:41.418Z",
+  "format": "faf-dna-v1"
+}

@@ -1,0 +1,36 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/deploy/A2/.dockerignore <rig>/runs3/deploy-A2-1/.dockerignore
+--- <rig>/cases/deploy/A2/.dockerignore	1969-12-31 19:00:00
++++ <rig>/runs3/deploy-A2-1/.dockerignore	2026-11-17 01:34:59
+@@ -0,0 +1,8 @@
++.venv
++.git
++.github
++.pytest_cache
++__pycache__
++*.db
++tests
++CLAUDE.md
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/deploy/A2/Dockerfile <rig>/runs3/deploy-A2-1/Dockerfile
+--- <rig>/cases/deploy/A2/Dockerfile	1969-12-31 19:00:00
++++ <rig>/runs3/deploy-A2-1/Dockerfile	2026-11-17 01:34:58
+@@ -0,0 +1,20 @@
++FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
++
++ENV UV_COMPILE_BYTECODE=1 \
++    UV_LINK_MODE=copy \
++    UV_NO_DEV=1 \
++    PYTHONUNBUFFERED=1 \
++    PATH="/app/.venv/bin:$PATH"
++
++WORKDIR /app
++
++# Dependencies first for layer caching
++RUN --mount=type=cache,target=/root/.cache/uv \
++    --mount=type=bind,source=uv.lock,target=uv.lock \
++    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
++    uv sync --locked --no-install-project
++
++COPY app ./app
++
++# Cloud Run injects $PORT (default 8080); no local disk, so DATABASE_URL must point at Cloud SQL
++CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

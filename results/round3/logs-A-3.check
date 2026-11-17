@@ -1,0 +1,16 @@
+
+> files-api@0.1.0 test
+> node --test
+
+GET /health 200 10.9ms
+✔ GET /health (199.050596ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 933.26713
+
+exit=0 wall=28

@@ -1,0 +1,41 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/gostd/B/main.go <rig>/runs3/gostd-B-1/main.go
+--- <rig>/cases/gostd/B/main.go	2026-11-16 20:21:19
++++ <rig>/runs3/gostd-B-1/main.go	2026-11-16 20:58:02
+@@ -4,6 +4,7 @@
+ 	"encoding/json"
+ 	"log"
+ 	"net/http"
++	"strconv"
+ 	"sync"
+ )
+ 
+@@ -28,12 +29,28 @@
+ 	json.NewEncoder(w).Encode(v)
+ }
+ 
++func (s *store) getUser(w http.ResponseWriter, r *http.Request) {
++	id, err := strconv.Atoi(r.PathValue("id"))
++	if err != nil {
++		writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
++		return
++	}
++	s.mu.RLock()
++	u, ok := s.users[id]
++	s.mu.RUnlock()
++	if !ok {
++		writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
++		return
++	}
++	writeJSON(w, http.StatusOK, u)
++}
++
+ func main() {
+ 	s := newStore()
+ 	mux := http.NewServeMux()
+ 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+ 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+ 	})
+-	_ = s
++	mux.HandleFunc("GET /users/{id}", s.getUser)
+ 	log.Fatal(http.ListenAndServe(":8080", mux))
+ }

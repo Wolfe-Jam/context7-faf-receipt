@@ -1,0 +1,50 @@
+faf_version: "3.0"
+project:
+  name: recipe-box
+  goal: "Recipe box: browse and share recipes"
+  main_language: TypeScript
+  type: svelte  # found: Svelte/SvelteKit
+stack:
+  frontend: SvelteKit 3.1
+  css_framework: "Plain CSS"
+  ui_library: "Own Svelte components"
+  state_management: Svelte 5 runes
+  backend: SvelteKit 3.1
+  api_type: Server Routes
+  runtime: Node.js
+  database: "Static data (src/lib)"
+  connection: "load functions"
+  hosting: Vercel (adapter-auto)
+  build: Vite 8
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "A home cook and a front-end developer"
+  what: "A SvelteKit 3 app"
+  why: "Share family recipes"
+  where: "Vercel"
+  when: "Upgraded to SvelteKit 3 in October 2026; search next"
+  how: "SvelteKit 3.1 with Svelte 5 runes"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - TypeScript
+  - Vite
+  - SvelteKit
+  - Svelte
+key_files:
+  - package.json
+  - tsconfig.json
+commands:
+  build: bun run build
+  dev: bun run dev

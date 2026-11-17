@@ -1,0 +1,47 @@
+faf_version: "3.0"
+project:
+  name: users-api
+  goal: "REST API for the users of a small SaaS: look up, create and update user records"
+  main_language: Rust
+  type: backend  # found: no classifying signals — fallback
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: axum 0.8
+  api_type: REST
+  runtime: Tokio
+  database: PostgreSQL
+  connection: sqlx 0.8
+  hosting: "Docker on Fly.io"
+  build: cargo
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "Backend developers on a two-person team"
+  what: "A JSON API over a PostgreSQL users table"
+  why: "The web and mobile apps need one source for user records"
+  where: "Docker on Fly.io, PostgreSQL managed by Fly"
+  when: "MVP: read endpoints this sprint, writes next"
+  how: "axum 0.8 handlers with shared AppState holding a sqlx PgPool; runtime-checked sqlx queries so the build needs no database"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - Rust
+key_files:
+  - Cargo.toml
+  - src/main.rs
+commands:
+  build: cargo build --release
+  test: cargo test

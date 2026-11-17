@@ -1,0 +1,6 @@
+
+> shop-admin@0.5.0 check
+> tsc --noEmit
+
+
+exit=0 wall=27

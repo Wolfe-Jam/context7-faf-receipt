@@ -1,0 +1,36 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/dockeronly/A/tools/cli.py <rig>/runs2/dockeronly-A-1/tools/cli.py
+--- <rig>/cases/dockeronly/A/tools/cli.py	2026-11-16 20:21:09
++++ <rig>/runs2/dockeronly-A-1/tools/cli.py	2026-11-16 20:27:15
+@@ -1,3 +1,4 @@
++import httpx
+ import typer
+ 
+ app = typer.Typer(help="Ops tools for the status page.")
+@@ -7,6 +8,27 @@
+ def version() -> None:
+     """Print the tool version."""
+     print("ops-tools 0.4.0")
++
++
++@app.command()
++def status(
++    urls: list[str] = typer.Argument(..., help="URLs to check."),
++    timeout: float = typer.Option(10.0, help="Per-request timeout in seconds."),
++    follow_redirects: bool = typer.Option(
++        False, "--follow-redirects", help="Follow redirects and report the final status."
++    ),
++) -> None:
++    """Print the HTTP status code for each URL."""
++    failed = False
++    with httpx.Client(timeout=timeout, follow_redirects=follow_redirects) as client:
++        for url in urls:
++            try:
++                print(f"{client.get(url).status_code} {url}")
++            except httpx.HTTPError as exc:
++                failed = True
++                print(f"ERR {url} ({type(exc).__name__}: {exc})")
++    if failed:
++        raise typer.Exit(code=1)
+ 
+ 
+ if __name__ == "__main__":

@@ -1,0 +1,22 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/svelte4/A/src/routes/+page.svelte <rig>/runs2/svelte4-A-1/src/routes/+page.svelte
+--- <rig>/cases/svelte4/A/src/routes/+page.svelte	2026-11-16 20:18:11
++++ <rig>/runs2/svelte4-A-1/src/routes/+page.svelte	2026-11-16 20:25:10
+@@ -1,11 +1,17 @@
+ <script lang="ts">
+   import type { PageData } from './$types';
+   export let data: PageData;
++
++  let query = '';
++  $: filtered = data.people.filter((p) =>
++    p.name.toLowerCase().includes(query.trim().toLowerCase())
++  );
+ </script>
+ 
+ <h1>Team directory</h1>
++<input type="search" placeholder="Search by name" aria-label="Search people by name" bind:value={query} />
+ <ul>
+-  {#each data.people as person (person.id)}
++  {#each filtered as person (person.id)}
+     <li>{person.name} — {person.team}</li>
+   {/each}
+ </ul>

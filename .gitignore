@@ -1,0 +1,12 @@
+node_modules/
+.venv/
+target/
+.svelte-kit/
+__pycache__/
+.pytest_cache/
+*.db
+c7-mcp.json
+runs/
+runs2/
+runs3/
+cases/gostd/*/people

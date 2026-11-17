@@ -1,0 +1,42 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/deploy/A2/.dockerignore <rig>/runs3/deploy-A2-2/.dockerignore
+--- <rig>/cases/deploy/A2/.dockerignore	1969-12-31 19:00:00
++++ <rig>/runs3/deploy-A2-2/.dockerignore	2026-11-17 01:37:12
+@@ -0,0 +1,9 @@
++.venv
++.git
++.github
++.pytest_cache
++__pycache__
++*.pyc
++*.db
++tests
++CLAUDE.md
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/deploy/A2/Dockerfile <rig>/runs3/deploy-A2-2/Dockerfile
+--- <rig>/cases/deploy/A2/Dockerfile	1969-12-31 19:00:00
++++ <rig>/runs3/deploy-A2-2/Dockerfile	2026-11-17 01:37:11
+@@ -0,0 +1,25 @@
++FROM python:3.12-slim
++
++COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
++
++ENV PYTHONUNBUFFERED=1 \
++    UV_COMPILE_BYTECODE=1 \
++    UV_PYTHON_DOWNLOADS=0 \
++    PATH="/app/.venv/bin:$PATH"
++
++WORKDIR /app
++
++# Dependencies first (cached layer), production deps only
++RUN --mount=type=cache,target=/root/.cache/uv \
++    --mount=type=bind,source=uv.lock,target=uv.lock \
++    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
++    uv sync --frozen --no-dev --no-install-project
++
++COPY app ./app
++
++# Run as non-root; Cloud Run injects $PORT
++RUN useradd --create-home appuser
++USER appuser
++
++# Cloud Run sets PORT (default 8080); shell form so it expands
++CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}

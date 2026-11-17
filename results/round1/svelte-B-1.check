@@ -1,0 +1,7 @@
+
+> notes-app@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+1794874827930 START "<rig>/runs/svelte-B-1"
+1794874827938 COMPLETED 504 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
+exit=0 wall=44

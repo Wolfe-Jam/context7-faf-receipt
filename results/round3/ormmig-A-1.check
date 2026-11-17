@@ -1,0 +1,6 @@
+
+> blog-api@0.3.0 check
+> tsc --noEmit
+
+
+exit=0 wall=46

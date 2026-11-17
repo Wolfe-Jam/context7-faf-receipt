@@ -1,0 +1,35 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/rawsql/A/migrations/002_tags.sql <rig>/runs2/rawsql-A-1/migrations/002_tags.sql
+--- <rig>/cases/rawsql/A/migrations/002_tags.sql	1969-12-31 19:00:00
++++ <rig>/runs2/rawsql-A-1/migrations/002_tags.sql	2026-11-16 20:26:31
+@@ -0,0 +1,12 @@
++CREATE TABLE tags (
++  id BIGSERIAL PRIMARY KEY,
++  name TEXT NOT NULL UNIQUE
++);
++
++CREATE TABLE bookmark_tags (
++  bookmark_id BIGINT NOT NULL REFERENCES bookmarks(id) ON DELETE CASCADE,
++  tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
++  PRIMARY KEY (bookmark_id, tag_id)
++);
++
++CREATE INDEX bookmark_tags_tag_id_idx ON bookmark_tags (tag_id);
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/rawsql/A/src/bookmarks.ts <rig>/runs2/rawsql-A-1/src/bookmarks.ts
+--- <rig>/cases/rawsql/A/src/bookmarks.ts	2026-11-16 20:20:40
++++ <rig>/runs2/rawsql-A-1/src/bookmarks.ts	2026-11-16 20:26:32
+@@ -5,3 +5,15 @@
+ export function listBookmarks() {
+   return sql<Bookmark[]>`select id, url, title, created_at from bookmarks order by created_at desc`;
+ }
++
++export type TagCount = { name: string; count: number };
++
++// count(*) is bigint, which postgres.js returns as a string; cast to int.
++export function listTags() {
++  return sql<TagCount[]>`
++    select t.name, count(bt.bookmark_id)::int as count
++    from tags t
++    left join bookmark_tags bt on bt.tag_id = t.id
++    group by t.id, t.name
++    order by count desc, t.name`;
++}

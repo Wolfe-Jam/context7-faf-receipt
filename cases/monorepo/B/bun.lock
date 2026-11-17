@@ -1,0 +1,42 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "acme",
+      "devDependencies": {
+        "typescript": "5.6.3",
+      },
+    },
+    "apps/api": {
+      "name": "@acme/api",
+      "version": "0.0.0",
+      "dependencies": {
+        "@acme/shared": "workspace:*",
+        "hono": "4.6.12",
+      },
+    },
+    "apps/web": {
+      "name": "@acme/web",
+      "version": "0.0.0",
+      "dependencies": {
+        "@acme/shared": "workspace:*",
+      },
+    },
+    "packages/shared": {
+      "name": "@acme/shared",
+      "version": "0.0.0",
+    },
+  },
+  "packages": {
+    "@acme/api": ["@acme/api@workspace:apps/api"],
+
+    "@acme/shared": ["@acme/shared@workspace:packages/shared"],
+
+    "@acme/web": ["@acme/web@workspace:apps/web"],
+
+    "hono": ["hono@4.6.12", "", {}, "sha512-eHtf4kSDNw6VVrdbd5IQi16r22m3s7mWPLd7xOMhg1a/Yyb1A0qpUFq8xYMX4FMuDe1nTKeMX5rTx7Nmw+a+Ag=="],
+
+    "typescript": ["typescript@5.6.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw=="],
+  }
+}

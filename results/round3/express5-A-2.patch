@@ -1,0 +1,92 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/A/src/app.js <rig>/runs3/express5-A-2/src/app.js
+--- <rig>/cases/express5/A/src/app.js	2026-11-16 20:19:30
++++ <rig>/runs3/express5-A-2/src/app.js	2026-11-16 21:00:38
+@@ -6,3 +6,26 @@
+ app.get('/health', (req, res) => {
+   res.json({ ok: true });
+ });
++
++// Express 5: wildcards must be named; req.params.path is an array of segments.
++app.get('/files/*path', (req, res) => {
++  const segments = req.params.path;
++  const name = segments[segments.length - 1];
++  const dot = name.lastIndexOf('.');
++  res.json({
++    path: segments.join('/'),
++    name,
++    directory: segments.slice(0, -1).join('/'),
++    extension: dot > 0 ? name.slice(dot + 1) : '',
++    depth: segments.length,
++  });
++});
++
++app.use((req, res) => {
++  res.status(404).json({ error: 'Not Found', path: req.path });
++});
++
++app.use((err, req, res, next) => {
++  const status = err.status ?? err.statusCode ?? 500;
++  res.status(status).json({ error: status === 500 ? 'Internal Server Error' : err.message });
++});
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/express5/A/test/files.test.js <rig>/runs3/express5-A-2/test/files.test.js
+--- <rig>/cases/express5/A/test/files.test.js	1969-12-31 19:00:00
++++ <rig>/runs3/express5-A-2/test/files.test.js	2026-11-16 21:00:42
+@@ -0,0 +1,58 @@
++import { test, before, after } from 'node:test';
++import assert from 'node:assert/strict';
++import { app } from '../src/app.js';
++
++let server, base;
++before(() => {
++  server = app.listen(0);
++  base = `http://127.0.0.1:${server.address().port}`;
++});
++after(() => server.close());
++
++test('GET /files/<single segment>', async () => {
++  const r = await fetch(`${base}/files/readme.md`);
++  assert.equal(r.status, 200);
++  assert.deepEqual(await r.json(), {
++    path: 'readme.md', name: 'readme.md', directory: '', extension: 'md', depth: 1,
++  });
++});
++
++test('GET /files/<nested path with slashes>', async () => {
++  const r = await fetch(`${base}/files/a/b/c/archive.tar.gz`);
++  assert.equal(r.status, 200);
++  assert.deepEqual(await r.json(), {
++    path: 'a/b/c/archive.tar.gz', name: 'archive.tar.gz', directory: 'a/b/c', extension: 'gz', depth: 4,
++  });
++});
++
++test('file without extension', async () => {
++  const body = await (await fetch(`${base}/files/bin/Makefile`)).json();
++  assert.equal(body.extension, '');
++});
++
++test('GET /files/ with no path is a JSON 404', async () => {
++  const r = await fetch(`${base}/files/`);
++  assert.equal(r.status, 404);
++  assert.match(r.headers.get('content-type'), /application\/json/);
++});
++
++test('unknown route returns JSON 404', async () => {
++  const r = await fetch(`${base}/nope`);
++  assert.equal(r.status, 404);
++  assert.match(r.headers.get('content-type'), /application\/json/);
++  assert.deepEqual(await r.json(), { error: 'Not Found', path: '/nope' });
++});
++
++test('unsupported method on known route returns JSON 404', async () => {
++  const r = await fetch(`${base}/health`, { method: 'POST' });
++  assert.equal(r.status, 404);
++  assert.equal((await r.json()).error, 'Not Found');
++});
++
++test('malformed JSON body yields JSON error, not HTML', async () => {
++  const r = await fetch(`${base}/health`, {
++    method: 'POST', headers: { 'content-type': 'application/json' }, body: '{bad',
++  });
++  assert.equal(r.status, 400);
++  assert.match(r.headers.get('content-type'), /application\/json/);
++});

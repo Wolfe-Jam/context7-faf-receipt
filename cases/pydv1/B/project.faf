@@ -1,0 +1,45 @@
+faf_version: "3.0"
+project:
+  name: orders-service
+  goal: "Orders service for the shop: customers and their orders"
+  main_language: Python
+  type: backend  # found: no classifying signals — fallback
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: FastAPI 0.99
+  api_type: REST
+  runtime: Python 3.12 (uvicorn)
+  database: None (in-memory for now)
+  connection: In-memory dict (no database client yet)
+  hosting: "Docker on ECS"
+  build: "uv"
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "Python developers on the shop team"
+  what: "A FastAPI JSON API"
+  why: "Split orders out of the monolith"
+  where: "Docker on ECS"
+  when: "Pinned to Pydantic 1.10 until the shared models package moves to v2"
+  how: "Pydantic v1 APIs only (class Config, .dict(), parse_obj, orm_mode); FastAPI 0.99 is the last release that supports v1"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - Python
+key_files:
+  - pyproject.toml
+commands:
+  test: pytest

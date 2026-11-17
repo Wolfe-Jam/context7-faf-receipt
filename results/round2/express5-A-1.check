@@ -1,0 +1,21 @@
+
+> files-api@0.1.0 test
+> node --test
+
+✔ single-segment file (78.328342ms)
+✔ nested path with slashes (18.297819ms)
+✔ dotfile has no extension (5.210126ms)
+✔ /files/ with no path is a JSON 404 (5.407119ms)
+✔ unknown route returns JSON 404 (3.865806ms)
+✔ unsupported method on known route is JSON 404 (6.743469ms)
+✔ GET /health (66.500728ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 398.331571
+
+exit=0 wall=35

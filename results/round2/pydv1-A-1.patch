@@ -1,0 +1,86 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/pydv1/A/app/main.py <rig>/runs2/pydv1-A-1/app/main.py
+--- <rig>/cases/pydv1/A/app/main.py	2026-11-16 20:19:07
++++ <rig>/runs2/pydv1-A-1/app/main.py	2026-11-16 20:25:21
+@@ -1,4 +1,4 @@
+-from fastapi import FastAPI
++from fastapi import FastAPI, HTTPException
+ from pydantic import BaseModel
+ 
+ app = FastAPI()
+@@ -10,9 +10,37 @@
+     email: str
+ 
+ 
++class CustomerCreate(BaseModel):
++    name: str
++    email: str
++
++
++class EmailUpdate(BaseModel):
++    email: str
++
++
+ CUSTOMERS = {1: Customer(id=1, name="Ada", email="ada@example.com")}
+ 
+ 
+ @app.get("/customers/{customer_id}", response_model=Customer)
+ def get_customer(customer_id: int) -> Customer:
++    if customer_id not in CUSTOMERS:
++        raise HTTPException(status_code=404, detail="Customer not found")
+     return CUSTOMERS[customer_id]
++
++
++@app.post("/customers", response_model=Customer, status_code=201)
++def create_customer(body: CustomerCreate) -> Customer:
++    new_id = max(CUSTOMERS, default=0) + 1
++    customer = Customer(id=new_id, **body.dict())
++    CUSTOMERS[new_id] = customer
++    return customer
++
++
++@app.patch("/customers/{customer_id}/email", response_model=Customer)
++def update_customer_email(customer_id: int, body: EmailUpdate) -> Customer:
++    if customer_id not in CUSTOMERS:
++        raise HTTPException(status_code=404, detail="Customer not found")
++    customer = CUSTOMERS[customer_id].copy(update={"email": body.email})
++    CUSTOMERS[customer_id] = customer
++    return customer
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/pydv1/A/tests/test_customers.py <rig>/runs2/pydv1-A-1/tests/test_customers.py
+--- <rig>/cases/pydv1/A/tests/test_customers.py	2026-11-16 20:19:07
++++ <rig>/runs2/pydv1-A-1/tests/test_customers.py	2026-11-16 20:25:24
+@@ -7,3 +7,35 @@
+     r = TestClient(app).get("/customers/1")
+     assert r.status_code == 200
+     assert r.json()["name"] == "Ada"
++
++
++def test_get_customer_not_found():
++    assert TestClient(app).get("/customers/999").status_code == 404
++
++
++def test_create_customer():
++    client = TestClient(app)
++    r = client.post("/customers", json={"name": "Grace", "email": "grace@example.com"})
++    assert r.status_code == 201
++    body = r.json()
++    assert body["name"] == "Grace"
++    assert body["email"] == "grace@example.com"
++    assert client.get(f"/customers/{body['id']}").json() == body
++
++
++def test_create_customer_invalid_body():
++    r = TestClient(app).post("/customers", json={"name": "NoEmail"})
++    assert r.status_code == 422
++
++
++def test_update_customer_email():
++    client = TestClient(app)
++    r = client.patch("/customers/1/email", json={"email": "new@example.com"})
++    assert r.status_code == 200
++    assert r.json() == {"id": 1, "name": "Ada", "email": "new@example.com"}
++    assert client.get("/customers/1").json()["email"] == "new@example.com"
++
++
++def test_update_email_not_found():
++    r = TestClient(app).patch("/customers/999/email", json={"email": "x@example.com"})
++    assert r.status_code == 404

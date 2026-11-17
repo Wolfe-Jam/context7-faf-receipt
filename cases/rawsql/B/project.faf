@@ -1,0 +1,45 @@
+faf_version: "3.0"
+project:
+  name: bookmarks
+  goal: "Personal bookmarks service"
+  main_language: TypeScript
+  type: backend  # found: no classifying signals — fallback
+stack:
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: Node.js (TypeScript)
+  api_type: REST
+  runtime: Node.js 22
+  database: PostgreSQL
+  connection: postgres.js (raw SQL, no ORM)
+  hosting: "Fly.io"
+  build: tsc
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "One developer"
+  what: "Bookmarks stored in PostgreSQL"
+  why: "Own the data, no SaaS"
+  where: "Fly.io"
+  when: "Tags next, then search"
+  how: "Raw SQL with postgres.js tagged templates, no ORM or query builder; every schema change is a numbered file in migrations/"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - TypeScript
+  - postgres
+key_files:
+  - package.json
+  - tsconfig.json

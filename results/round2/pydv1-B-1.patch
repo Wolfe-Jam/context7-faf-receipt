@@ -1,0 +1,106 @@
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/pydv1/B/app/main.py <rig>/runs2/pydv1-B-1/app/main.py
+--- <rig>/cases/pydv1/B/app/main.py	2026-11-16 20:19:07
++++ <rig>/runs2/pydv1-B-1/app/main.py	2026-11-16 20:25:20
+@@ -1,4 +1,4 @@
+-from fastapi import FastAPI
++from fastapi import FastAPI, HTTPException
+ from pydantic import BaseModel
+ 
+ app = FastAPI()
+@@ -10,9 +10,37 @@
+     email: str
+ 
+ 
++class CustomerCreate(BaseModel):
++    name: str
++    email: str
++
++
++class EmailUpdate(BaseModel):
++    email: str
++
++
+ CUSTOMERS = {1: Customer(id=1, name="Ada", email="ada@example.com")}
+ 
+ 
+ @app.get("/customers/{customer_id}", response_model=Customer)
+ def get_customer(customer_id: int) -> Customer:
++    if customer_id not in CUSTOMERS:
++        raise HTTPException(status_code=404, detail="Customer not found")
+     return CUSTOMERS[customer_id]
++
++
++@app.post("/customers", response_model=Customer, status_code=201)
++def create_customer(body: CustomerCreate) -> Customer:
++    customer_id = max(CUSTOMERS, default=0) + 1
++    customer = Customer(id=customer_id, **body.dict())
++    CUSTOMERS[customer_id] = customer
++    return customer
++
++
++@app.patch("/customers/{customer_id}/email", response_model=Customer)
++def update_customer_email(customer_id: int, body: EmailUpdate) -> Customer:
++    if customer_id not in CUSTOMERS:
++        raise HTTPException(status_code=404, detail="Customer not found")
++    customer = CUSTOMERS[customer_id].copy(update={"email": body.email})
++    CUSTOMERS[customer_id] = customer
++    return customer
+diff -ruN -x node_modules -x target -x .venv -x .svelte-kit -x __pycache__ -x .pytest_cache -x *.db -x bun.lock -x bun.lockb -x uv.lock -x Cargo.lock -x go.sum -x package-lock.json -x people <rig>/cases/pydv1/B/tests/test_customers.py <rig>/runs2/pydv1-B-1/tests/test_customers.py
+--- <rig>/cases/pydv1/B/tests/test_customers.py	2026-11-16 20:19:07
++++ <rig>/runs2/pydv1-B-1/tests/test_customers.py	2026-11-16 20:25:23
+@@ -1,9 +1,53 @@
++import pytest
+ from fastapi.testclient import TestClient
+ 
+-from app.main import app
++from app.main import CUSTOMERS, app
+ 
++client = TestClient(app)
+ 
++
++@pytest.fixture(autouse=True)
++def restore_customers():
++    snapshot = dict(CUSTOMERS)
++    yield
++    CUSTOMERS.clear()
++    CUSTOMERS.update(snapshot)
++
++
+ def test_get_customer():
+-    r = TestClient(app).get("/customers/1")
++    r = client.get("/customers/1")
+     assert r.status_code == 200
+     assert r.json()["name"] == "Ada"
++
++
++def test_get_customer_not_found():
++    assert client.get("/customers/999").status_code == 404
++
++
++def test_create_customer():
++    r = client.post("/customers", json={"name": "Bob", "email": "bob@example.com"})
++    assert r.status_code == 201
++    body = r.json()
++    assert body == {"id": 2, "name": "Bob", "email": "bob@example.com"}
++    assert client.get(f"/customers/{body['id']}").json() == body
++
++
++def test_create_customer_invalid_body():
++    r = client.post("/customers", json={"name": "Bob"})
++    assert r.status_code == 422
++
++
++def test_update_customer_email():
++    r = client.patch("/customers/1/email", json={"email": "new@example.com"})
++    assert r.status_code == 200
++    assert r.json() == {"id": 1, "name": "Ada", "email": "new@example.com"}
++    assert client.get("/customers/1").json()["email"] == "new@example.com"
++
++
++def test_update_customer_email_not_found():
++    r = client.patch("/customers/999/email", json={"email": "x@example.com"})
++    assert r.status_code == 404
++
++
++def test_update_customer_email_invalid_body():
++    assert client.patch("/customers/1/email", json={}).status_code == 422

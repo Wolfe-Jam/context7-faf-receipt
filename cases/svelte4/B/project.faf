@@ -1,0 +1,50 @@
+faf_version: "3.0"
+project:
+  name: team-directory
+  goal: "Internal team directory: find people and their teams"
+  main_language: TypeScript
+  type: svelte  # found: Svelte/SvelteKit
+stack:
+  frontend: SvelteKit
+  css_framework: "Plain CSS"
+  ui_library: "Own Svelte components"
+  state_management: "Svelte 4 stores and reactive statements"
+  backend: SvelteKit
+  api_type: Server Routes
+  runtime: Node.js
+  database: "None (static data from load functions)"
+  connection: "load functions (static data)"
+  hosting: Vercel (adapter-auto)
+  build: Vite 5
+  cicd: "GitHub Actions"
+  monorepo_tool: slotignored
+  package_manager: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
+human_context:
+  who: "Two front-end developers"
+  what: "A SvelteKit 2 app on Svelte 4"
+  why: "People need to find who owns what"
+  where: "Vercel"
+  when: "Svelte 4 until Q3; the Svelte 5 upgrade is planned, not started"
+  how: "Svelte 4 syntax only (export let, $: reactive statements, on:event); no runes until the upgrade"
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
+tech_stack:
+  - TypeScript
+  - SvelteKit
+  - Vite
+  - Svelte
+key_files:
+  - package.json
+  - tsconfig.json
+commands:
+  build: bun run build
+  dev: bun run dev
